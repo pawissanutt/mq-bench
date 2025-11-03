@@ -156,3 +156,9 @@ if [[ $RUN_TEST -eq 1 ]]; then
 fi
 
 log "Done. Docker Engine and Compose are installed."
+
+# Manage Docker as a non-root user
+sudo groupadd docker
+sudo usermod -aG docker $USER
+newgrp docker
+# echo "To use Docker as a non-root user, log out and back in, or run: newgrp docker"
