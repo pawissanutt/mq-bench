@@ -67,7 +67,7 @@ ip -4 addr show
 Note:
 - **Interface name**: e.g., `enp152s0np0`, `eno2`, `eth1`
 - **CIDR**: e.g., `192.168.0.0/24`
-- **Gateway**: typically `.1` on your subnet, e.g., `192.168.0.1`
+- **Gateway**: in this lab use `192.168.0.10` on your subnet
 
 ### 4. Pick Unused IP Addresses
 
@@ -97,9 +97,9 @@ sudo setup/kvm-create-delete.sh \
   -m 2048 \
   -M auto \
   -a 192.168.0.250/24 \
-  -g 192.168.0.1 \
+  -g 192.168.0.10 \
   -q 192.168.0.251/24 \
-  -w 192.168.0.1 \
+  -w 192.168.0.10 \
   -r 1.1.1.1,8.8.8.8 \
   -A
 ```
@@ -110,9 +110,9 @@ sudo setup/kvm-create-delete.sh \
 - `-m 2048` — 2048 MB RAM
 - `-M auto` — Auto-detect oaas-net interface by CIDR (192.168.0.0/16)
 - `-a 192.168.0.250/24` — Static IP for host macvlan (host↔guest access)
-- `-g 192.168.0.1` — Gateway for host macvlan
+- `-g 192.168.0.10` — Gateway for host macvlan
 - `-q 192.168.0.251/24` — Static IP for the VM inside the guest
-- `-w 192.168.0.1` — Gateway for the VM
+- `-w 192.168.0.10` — Gateway for the VM
 - `-r 1.1.1.1,8.8.8.8` — DNS servers for the VM (comma-separated)
 - `-A` — Auto-download Ubuntu 24.04 cloud image if not present
 
@@ -127,9 +127,9 @@ sudo setup/kvm-create-delete.sh \
   -m 4096 \
   -M enp152s0np0 \
   -a 192.168.0.250/24 \
-  -g 192.168.0.1 \
+  -g 192.168.0.10 \
   -q 192.168.0.251/24 \
-  -w 192.168.0.1 \
+  -w 192.168.0.10 \
   -r 1.1.1.1,8.8.8.8 \
   -A
 ```
@@ -148,9 +148,9 @@ sudo setup/kvm-create-delete.sh \
   -M auto \
   -k ~/.ssh/id_rsa.pub \
   -a 192.168.0.250/24 \
-  -g 192.168.0.1 \
+  -g 192.168.0.10 \
   -q 192.168.0.251/24 \
-  -w 192.168.0.1 \
+  -w 192.168.0.10 \
   -r 1.1.1.1,8.8.8.8 \
   -A
 ```
@@ -169,7 +169,7 @@ sudo setup/kvm-create-delete.sh \
   -M auto \
   -H \
   -q 192.168.0.251/24 \
-  -w 192.168.0.1 \
+  -w 192.168.0.10 \
   -r 1.1.1.1,8.8.8.8 \
   -A
 ```
@@ -367,14 +367,14 @@ Example:
 # VM 1
 sudo setup/kvm-create-delete.sh \
   -n vm-1 -c 2 -m 2048 -M auto \
-  -a 192.168.0.250/24 -g 192.168.0.1 \
-  -q 192.168.0.251/24 -w 192.168.0.1 -r 1.1.1.1 -A
+  -a 192.168.0.250/24 -g 192.168.0.10 \
+  -q 192.168.0.251/24 -w 192.168.0.10 -r 1.1.1.1 -A
 
 # VM 2
 sudo setup/kvm-create-delete.sh \
   -n vm-2 -c 2 -m 2048 -M auto \
-  -a 192.168.0.252/24 -g 192.168.0.1 \
-  -q 192.168.0.253/24 -w 192.168.0.1 -r 1.1.1.1 -A
+  -a 192.168.0.252/24 -g 192.168.0.10 \
+  -q 192.168.0.253/24 -w 192.168.0.10 -r 1.1.1.1 -A
 ```
 
 ## Advanced Options
@@ -388,8 +388,8 @@ sudo setup/kvm-create-delete.sh \
   -m 16384 \
   -s 100 \
   -M auto \
-  -a 192.168.0.250/24 -g 192.168.0.1 \
-  -q 192.168.0.251/24 -w 192.168.0.1 -r 1.1.1.1 -A
+  -a 192.168.0.250/24 -g 192.168.0.10 \
+  -q 192.168.0.251/24 -w 192.168.0.10 -r 1.1.1.1 -A
 ```
 
 - `-s 100` — 100 GB disk
@@ -402,8 +402,8 @@ sudo setup/kvm-create-delete.sh \
   -u myuser \
   -p mypassword \
   -M auto \
-  -a 192.168.0.250/24 -g 192.168.0.1 \
-  -q 192.168.0.251/24 -w 192.168.0.1 -r 1.1.1.1 -A
+  -a 192.168.0.250/24 -g 192.168.0.10 \
+  -q 192.168.0.251/24 -w 192.168.0.10 -r 1.1.1.1 -A
 ```
 
 ### Use a Different Cloud Image
@@ -419,8 +419,8 @@ sudo setup/kvm-create-delete.sh \
   -I /var/lib/libvirt/images/ubuntu-22.04-server-cloudimg-amd64.img \
   -o ubuntu22.04 \
   -M auto \
-  -a 192.168.0.250/24 -g 192.168.0.1 \
-  -q 192.168.0.251/24 -w 192.168.0.1 -r 1.1.1.1
+  -a 192.168.0.250/24 -g 192.168.0.10 \
+  -q 192.168.0.251/24 -w 192.168.0.10 -r 1.1.1.1
 ```
 
 ### Define Only (Don't Start)
@@ -430,8 +430,8 @@ sudo setup/kvm-create-delete.sh \
   -n vm-oaas \
   -D \
   -M auto \
-  -a 192.168.0.250/24 -g 192.168.0.1 \
-  -q 192.168.0.251/24 -w 192.168.0.1 -r 1.1.1.1 -A
+  -a 192.168.0.250/24 -g 192.168.0.10 \
+  -q 192.168.0.251/24 -w 192.168.0.10 -r 1.1.1.1 -A
 
 # Later, start manually:
 sudo virsh start vm-oaas
@@ -456,10 +456,10 @@ Run the script with `-h` to see all options:
 | `-M` | Macvtap interface (auto or explicit) | `-M auto` or `-M enp152s0np0` |
 | `-C` | CIDR for auto-detection | `-C 192.168.0.0/24` |
 | `-a` | Static IP for host macvlan | `-a 192.168.0.250/24` |
-| `-g` | Gateway for host macvlan | `-g 192.168.0.1` |
+| `-g` | Gateway for host macvlan | `-g 192.168.0.10` |
 | `-H` | Try DHCP on host macvlan (12s timeout) | `-H` |
 | `-q` | Static IP for VM (cloud-init) | `-q 192.168.0.251/24` |
-| `-w` | Gateway for VM | `-w 192.168.0.1` |
+| `-w` | Gateway for VM | `-w 192.168.0.10` |
 | `-r` | DNS for VM (comma-separated) | `-r 1.1.1.1,8.8.8.8` |
 | `-u` | Username in VM | `-u ubuntu` |
 | `-k` | SSH public key path | `-k ~/.ssh/id_rsa.pub` |
@@ -527,8 +527,8 @@ sudo setup/kvm-create-delete.sh \
   -n bench-vm-1 \
   -c 4 -m 8192 -s 50 \
   -M enp152s0np0 \
-  -a 192.168.0.200/24 -g 192.168.0.1 \
-  -q 192.168.0.201/24 -w 192.168.0.1 -r 1.1.1.1 \
+  -a 192.168.0.200/24 -g 192.168.0.10 \
+  -q 192.168.0.201/24 -w 192.168.0.10 -r 1.1.1.1 \
   -k /home/cc/.ssh/id_rsa.pub \
   -A
 ```
@@ -540,8 +540,8 @@ sudo setup/kvm-create-delete.sh \
   -n bench-vm-2 \
   -c 4 -m 8192 -s 50 \
   -M <interface-name> \
-  -a 192.168.0.202/24 -g 192.168.0.1 \
-  -q 192.168.0.203/24 -w 192.168.0.1 -r 1.1.1.1 \
+  -a 192.168.0.202/24 -g 192.168.0.10 \
+  -q 192.168.0.203/24 -w 192.168.0.10 -r 1.1.1.1 \
   -k /home/cc/.ssh/id_rsa.pub \
   -A
 ```
