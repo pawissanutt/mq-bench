@@ -7,6 +7,7 @@ set -euo pipefail
 #   scripts/orchestrate_benchmarks.sh [--payloads "128 512 1024 4096"] \
 #     [--rates "1000 5000 10000"] [--duration 20] [--snapshot 5] \
 #     [--transports "zenoh mqtt redis nats rabbitmq rabbitmq-amqp rabbitmq-mqtt mqtt-mosquitto mqtt-emqx mqtt-hivemq mqtt-rabbitmq mqtt-artemis artemis amqp"] [--mqtt-brokers "mosquitto:127.0.0.1:1883 emqx:127.0.0.1:1884 hivemq:127.0.0.1:1885"] \
+#     [--host 192.168.0.254] \
 #     [--fanout] [--fanout-subs "2 4 8"] [--fanout-rates "1000 5000 10000"] \
 #     [--start-services] [--run-id-prefix PREFIX] [--summary PATH] [--plots-only] [--dry-run] [--no-baseline]
 #
@@ -21,6 +22,10 @@ set -euo pipefail
 #   scripts/orchestrate_benchmarks.sh --payloads "256 1024 4096" --rates "1000 5000 10000" --duration 30
 # - MQTT across multiple brokers (override hosts/ports):
 #   scripts/orchestrate_benchmarks.sh --transports "mqtt" --mqtt-brokers "mosq:127.0.0.1:1883 emqx:127.0.0.1:1884 hive:127.0.0.1:1885"
+# - Point all brokers to a remote host (same IP for all; default ports retained):
+#   HOST=192.168.0.254 scripts/orchestrate_benchmarks.sh --start-services=0
+#   or equivalently:
+#   scripts/orchestrate_benchmarks.sh --host 192.168.0.254 --start-services=0
 # - Fanout only (no baselines), sweep subscribers and use baseline rates:
 #   scripts/orchestrate_benchmarks.sh --no-baseline --fanout --fanout-subs "2 4 8 16"
 # - Fanout with dedicated rates and payload set:
@@ -46,6 +51,7 @@ START_SERVICES=0
 PLOTS_ONLY=0
 DRY_RUN=${DRY_RUN:-0}
 SUMMARY_OVERRIDE=""
+HOST="${HOST:-}"
 
 # Space-separated list of name:host:port tokens for MQTT
 MQTT_BROKERS="mosquitto:127.0.0.1:1883 emqx:127.0.0.1:1884 hivemq:127.0.0.1:1885 rabbitmq:127.0.0.1:1886 artemis:127.0.0.1:1887"
@@ -83,6 +89,8 @@ while [[ $# -gt 0 ]]; do
       shift; SUMMARY_OVERRIDE=${1:-} ;;
     --mqtt-brokers)
       shift; MQTT_BROKERS=${1:-} ;;
+    --host)
+      shift; HOST=${1:-} ;;
     --fanout)
       FANOUT_ENABLE=1 ;;
     --fanout-subs)
@@ -103,6 +111,16 @@ done
 
 # Materialize MQTT brokers array
 IFS=' ' read -r -a MQTT_BROKERS_ARR <<<"${MQTT_BROKERS}"
+
+# If a global HOST is specified, rewrite MQTT broker hostnames to use it (keeping ports and names)
+if [[ -n "${HOST}" ]]; then
+  declare -a _REWRITTEN=()
+  for tok in "${MQTT_BROKERS_ARR[@]}"; do
+    IFS=: read -r bname _bhost bport <<<"${tok}"
+    _REWRITTEN+=("${bname}:${HOST}:${bport}")
+  done
+  MQTT_BROKERS_ARR=("${_REWRITTEN[@]}")
+fi
 
 timestamp() { date +%Y%m%d_%H%M%S; }
 
@@ -128,8 +146,12 @@ run() { if [[ "$DRY_RUN" = 1 ]]; then echo "+ $*"; else eval "$*"; fi }
 
 ensure_services() {
   if [[ $START_SERVICES -eq 1 ]]; then
-    log "Starting services via compose_up.sh"
-    run "bash \"${SCRIPT_DIR}/compose_up.sh\""
+    if [[ -n "${HOST}" ]] && [[ "${HOST}" != "127.0.0.1" ]] && [[ "${HOST}" != "localhost" ]]; then
+      log "HOST=${HOST} indicates remote brokers; skipping local service startup"
+    else
+      log "Starting services via compose_up.sh"
+      run "bash \"${SCRIPT_DIR}/compose_up.sh\""
+    fi
   else
     log "Skipping service startup (use --start-services to enable)"
   fi
@@ -241,13 +263,19 @@ parse_and_append_summary() {
 
 run_fanout_combo() {
   local transport="$1" subs="$2" payload="$3" rate="$4"
-  local rid env_common cmd art_dir
+  local rid env_common env_host cmd art_dir
   env_common="SUBS=${subs} PAYLOAD=${payload} RATE=${rate} DURATION=${DURATION} SNAPSHOT=${SNAPSHOT} KEY=bench/topic"
   case "${transport}" in
     zenoh)
       rid="${RUN_ID_PREFIX}_$(timestamp)_fanout_${transport}_s${subs}_p${payload}_r${rate}"
       art_dir="${REPO_ROOT}/artifacts/${rid}/fanout_singlesite"
-      cmd="ENGINE=zenoh ${env_common} bash \"${SCRIPT_DIR}/run_fanout.sh\" \"${rid}\""
+      env_host=""
+      if [[ -n "${HOST}" ]]; then
+        local _epsub="${ENDPOINT_SUB:-tcp/${HOST}:7447}"
+        local _eppub="${ENDPOINT_PUB:-tcp/${HOST}:7447}"
+        env_host="ENDPOINT_SUB=${_epsub} ENDPOINT_PUB=${_eppub}"
+      fi
+      cmd="ENGINE=zenoh ${env_host} ${env_common} bash \"${SCRIPT_DIR}/run_fanout.sh\" \"${rid}\""
       log "Running: fanout transport=zenoh, subs=${subs}, payload=${payload}, rate=${rate} (run_id=${rid})"
       run "${cmd}"
       parse_and_append_summary "fanout-zenoh-s${subs}" "${payload}" "${rate}" "${rid}" "${art_dir}"
@@ -255,7 +283,13 @@ run_fanout_combo() {
     zenoh-peer)
       rid="${RUN_ID_PREFIX}_$(timestamp)_fanout_${transport}_s${subs}_p${payload}_r${rate}"
       art_dir="${REPO_ROOT}/artifacts/${rid}/fanout_singlesite"
-      cmd="ENGINE=zenoh-peer ${env_common} bash \"${SCRIPT_DIR}/run_fanout.sh\" \"${rid}\""
+      env_host=""
+      if [[ -n "${HOST}" ]]; then
+        local _epsub="${ENDPOINT_SUB:-tcp/${HOST}:7447}"
+        local _eppub="${ENDPOINT_PUB:-tcp/${HOST}:7447}"
+        env_host="ENDPOINT_SUB=${_epsub} ENDPOINT_PUB=${_eppub}"
+      fi
+      cmd="ENGINE=zenoh-peer ${env_host} ${env_common} bash \"${SCRIPT_DIR}/run_fanout.sh\" \"${rid}\""
       log "Running: fanout transport=zenoh-peer, subs=${subs}, payload=${payload}, rate=${rate} (run_id=${rid})"
       run "${cmd}"
       parse_and_append_summary "fanout-zenoh-peer-s${subs}" "${payload}" "${rate}" "${rid}" "${art_dir}"
@@ -263,7 +297,9 @@ run_fanout_combo() {
     redis)
       rid="${RUN_ID_PREFIX}_$(timestamp)_fanout_${transport}_s${subs}_p${payload}_r${rate}"
       art_dir="${REPO_ROOT}/artifacts/${rid}/fanout_singlesite"
-      cmd="ENGINE=redis ${env_common} bash \"${SCRIPT_DIR}/run_fanout.sh\" \"${rid}\""
+      env_host=""
+      if [[ -n "${HOST}" ]]; then env_host="REDIS_URL=redis://${HOST}:6379"; fi
+      cmd="ENGINE=redis ${env_host} ${env_common} bash \"${SCRIPT_DIR}/run_fanout.sh\" \"${rid}\""
       log "Running: fanout transport=redis, subs=${subs}, payload=${payload}, rate=${rate} (run_id=${rid})"
       run "${cmd}"
       parse_and_append_summary "fanout-redis-s${subs}" "${payload}" "${rate}" "${rid}" "${art_dir}"
@@ -274,7 +310,7 @@ run_fanout_combo() {
         IFS=: read -r bname bhost bport <<<"${tok}"
         rid="${RUN_ID_PREFIX}_$(timestamp)_fanout_${transport}_${bname}_s${subs}_p${payload}_r${rate}"
         art_dir="${REPO_ROOT}/artifacts/${rid}/fanout_singlesite"
-  cmd="ENGINE=mqtt BROKER_CONTAINER=${bname} MQTT_HOST=${bhost} MQTT_PORT=${bport} ${env_common} bash \"${SCRIPT_DIR}/run_fanout.sh\" \"${rid}\""
+        cmd="ENGINE=mqtt BROKER_CONTAINER=${bname} MQTT_HOST=${bhost} MQTT_PORT=${bport} ${env_common} bash \"${SCRIPT_DIR}/run_fanout.sh\" \"${rid}\""
         log "Running: fanout transport=mqtt(${bname}), subs=${subs}, payload=${payload}, rate=${rate} (run_id=${rid})"
         run "${cmd}"
         parse_and_append_summary "fanout-mqtt-${bname}-s${subs}" "${payload}" "${rate}" "${rid}" "${art_dir}"
@@ -284,7 +320,9 @@ run_fanout_combo() {
     rabbitmq)
       rid="${RUN_ID_PREFIX}_$(timestamp)_fanout_${transport}_s${subs}_p${payload}_r${rate}"
       art_dir="${REPO_ROOT}/artifacts/${rid}/fanout_singlesite"
-      cmd="ENGINE=rabbitmq ${env_common} bash \"${SCRIPT_DIR}/run_fanout.sh\" \"${rid}\""
+      env_host=""
+      if [[ -n "${HOST}" ]]; then env_host="RABBITMQ_HOST=${HOST}"; fi
+      cmd="ENGINE=rabbitmq ${env_host} ${env_common} bash \"${SCRIPT_DIR}/run_fanout.sh\" \"${rid}\""
       log "Running: fanout transport=rabbitmq(amqp), subs=${subs}, payload=${payload}, rate=${rate} (run_id=${rid})"
       run "${cmd}"
       parse_and_append_summary "fanout-rabbitmq-s${subs}" "${payload}" "${rate}" "${rid}" "${art_dir}"
@@ -292,7 +330,9 @@ run_fanout_combo() {
     nats)
       rid="${RUN_ID_PREFIX}_$(timestamp)_fanout_${transport}_s${subs}_p${payload}_r${rate}"
       art_dir="${REPO_ROOT}/artifacts/${rid}/fanout_singlesite"
-      cmd="ENGINE=nats ${env_common} bash \"${SCRIPT_DIR}/run_fanout.sh\" \"${rid}\""
+      env_host=""
+      if [[ -n "${HOST}" ]]; then env_host="NATS_HOST=${HOST}"; fi
+      cmd="ENGINE=nats ${env_host} ${env_common} bash \"${SCRIPT_DIR}/run_fanout.sh\" \"${rid}\""
       log "Running: fanout transport=nats, subs=${subs}, payload=${payload}, rate=${rate} (run_id=${rid})"
       run "${cmd}"
       parse_and_append_summary "fanout-nats-s${subs}" "${payload}" "${rate}" "${rid}" "${art_dir}"
@@ -304,17 +344,29 @@ run_fanout_combo() {
 
 run_one_combo() {
   local transport="$1" payload="$2" rate="$3"
-  local rid env_common cmd art_dir
+  local rid env_common env_host cmd art_dir
   env_common="PAYLOAD=${payload} RATE=${rate} DURATION=${DURATION} SNAPSHOT=${SNAPSHOT} KEY=bench/topic"
   case "${transport}" in
     zenoh)
       rid="${RUN_ID_PREFIX}_$(timestamp)_${transport}_p${payload}_r${rate}"
-      cmd="ENGINE=zenoh ${env_common} bash \"${SCRIPT_DIR}/run_baseline.sh\" \"${rid}\""
+      env_host=""
+      if [[ -n "${HOST}" ]]; then
+        local _epsub="${ENDPOINT_SUB:-tcp/${HOST}:7447}"
+        local _eppub="${ENDPOINT_PUB:-tcp/${HOST}:7447}"
+        env_host="ENDPOINT_SUB=${_epsub} ENDPOINT_PUB=${_eppub}"
+      fi
+      cmd="ENGINE=zenoh ${env_host} ${env_common} bash \"${SCRIPT_DIR}/run_baseline.sh\" \"${rid}\""
       art_dir="${REPO_ROOT}/artifacts/${rid}/local_baseline"
       ;;
     zenoh-peer)
       rid="${RUN_ID_PREFIX}_$(timestamp)_${transport}_p${payload}_r${rate}"
-      cmd="ENGINE=zenoh-peer ${env_common} bash \"${SCRIPT_DIR}/run_baseline.sh\" \"${rid}\""
+      env_host=""
+      if [[ -n "${HOST}" ]]; then
+        local _epsub="${ENDPOINT_SUB:-tcp/${HOST}:7447}"
+        local _eppub="${ENDPOINT_PUB:-tcp/${HOST}:7447}"
+        env_host="ENDPOINT_SUB=${_epsub} ENDPOINT_PUB=${_eppub}"
+      fi
+      cmd="ENGINE=zenoh-peer ${env_host} ${env_common} bash \"${SCRIPT_DIR}/run_baseline.sh\" \"${rid}\""
       art_dir="${REPO_ROOT}/artifacts/${rid}/local_baseline"
       ;;
     mqtt)
@@ -322,7 +374,7 @@ run_one_combo() {
       for tok in "${MQTT_BROKERS_ARR[@]}"; do
         IFS=: read -r bname bhost bport <<<"${tok}"
         rid="${RUN_ID_PREFIX}_$(timestamp)_${transport}_${bname}_p${payload}_r${rate}"
-  cmd="ENGINE=mqtt BROKER_CONTAINER=${bname} MQTT_HOST=${bhost} MQTT_PORT=${bport} ${env_common} bash \"${SCRIPT_DIR}/run_baseline.sh\" \"${rid}\""
+        cmd="ENGINE=mqtt BROKER_CONTAINER=${bname} MQTT_HOST=${bhost} MQTT_PORT=${bport} ${env_common} bash \"${SCRIPT_DIR}/run_baseline.sh\" \"${rid}\""
         art_dir="${REPO_ROOT}/artifacts/${rid}/local_baseline"
         log "Running: transport=mqtt(${bname}), payload=${payload}, rate=${rate} (run_id=${rid})"
         run "${cmd}"
@@ -332,17 +384,23 @@ run_one_combo() {
       ;;
     redis)
       rid="${RUN_ID_PREFIX}_$(timestamp)_${transport}_p${payload}_r${rate}"
-      cmd="ENGINE=redis ${env_common} bash \"${SCRIPT_DIR}/run_baseline.sh\" \"${rid}\""
+      env_host=""
+      if [[ -n "${HOST}" ]]; then env_host="REDIS_URL=redis://${HOST}:6379"; fi
+      cmd="ENGINE=redis ${env_host} ${env_common} bash \"${SCRIPT_DIR}/run_baseline.sh\" \"${rid}\""
       art_dir="${REPO_ROOT}/artifacts/${rid}/local_baseline"
       ;;
     rabbitmq)
       rid="${RUN_ID_PREFIX}_$(timestamp)_${transport}_p${payload}_r${rate}"
-      cmd="ENGINE=rabbitmq ${env_common} bash \"${SCRIPT_DIR}/run_baseline.sh\" \"${rid}\""
+      env_host=""
+      if [[ -n "${HOST}" ]]; then env_host="RABBITMQ_HOST=${HOST}"; fi
+      cmd="ENGINE=rabbitmq ${env_host} ${env_common} bash \"${SCRIPT_DIR}/run_baseline.sh\" \"${rid}\""
       art_dir="${REPO_ROOT}/artifacts/${rid}/local_baseline"
       ;;
     nats)
       rid="${RUN_ID_PREFIX}_$(timestamp)_${transport}_p${payload}_r${rate}"
-      cmd="ENGINE=nats ${env_common} bash \"${SCRIPT_DIR}/run_baseline.sh\" \"${rid}\""
+      env_host=""
+      if [[ -n "${HOST}" ]]; then env_host="NATS_HOST=${HOST}"; fi
+      cmd="ENGINE=nats ${env_host} ${env_common} bash \"${SCRIPT_DIR}/run_baseline.sh\" \"${rid}\""
       art_dir="${REPO_ROOT}/artifacts/${rid}/local_baseline"
       ;;
     *)
