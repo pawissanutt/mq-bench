@@ -27,6 +27,7 @@ import math
 import re
 import sys
 from collections import defaultdict
+from typing import Tuple
 
 
 def parse_args() -> argparse.Namespace:
@@ -34,6 +35,54 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--summary", required=True, help="Path to summary.csv")
     p.add_argument("--out-dir", required=True, help="Output directory for plots")
     return p.parse_args()
+
+
+# Marker and linestyle mapping per transport/broker for consistent visuals
+# Supports labels like 'mqtt_emqx' and 'mqtt-emqx' (fanout plots)
+MARKER_MAP = {
+    "mqtt_mosquitto": "o",
+    "mqtt_emqx": "s",
+    "mqtt_hivemq": "^",
+    "mqtt_rabbitmq": "D",
+    "mqtt_artemis": "v",
+    "mqtt": "o",
+    "redis": "x",
+    "nats": "P",
+    "zenoh": "h",
+    "rabbitmq": "*",
+}
+
+LINESTYLE_MAP = {
+    "mqtt_mosquitto": "-",
+    "mqtt_emqx": "--",
+    "mqtt_hivemq": "-.",
+    "mqtt_rabbitmq": ":",
+    "mqtt_artemis": "-",
+    "mqtt": "-",
+    "redis": "--",
+    "nats": "-.",
+    "zenoh": "-",
+    "rabbitmq": ":",
+}
+
+_MARKERS_CYCLE = ["o", "s", "^", "D", "v", "P", "X", "*", "h", "+", "x"]
+_STYLES_CYCLE = ["-", "--", "-.", ":"]
+
+
+def _norm_label(lbl: str) -> str:
+    return (lbl or "").strip().lower().replace("-", "_")
+
+
+def style_for(lbl: str) -> Tuple[str, str]:
+    key = _norm_label(lbl)
+    marker = MARKER_MAP.get(key)
+    # All lines solid by default; keep marker distinct per broker/transport
+    linestyle = "-"
+    if marker is None:
+        # Deterministic fallback based on label hash
+        idx = abs(hash(key))
+        marker = _MARKERS_CYCLE[idx % len(_MARKERS_CYCLE)]
+    return marker, linestyle
 
 
 def load_records(csv_path: str):
@@ -180,7 +229,8 @@ def main() -> int:
                     xs.append(rate)
                     ys.append(sub_tps)
                 if xs and ys:
-                    ax.plot(xs, ys, marker="o", label=t)
+                    m, ls = style_for(t)
+                    ax.plot(xs, ys, marker=m, linestyle=ls, label=t)
             ax.set_title(f"Throughput vs Offered Rate (payload={payload}B)")
             ax.set_xlabel("Offered rate (msg/s)")
             ax.set_ylabel("Delivered throughput (msg/s)")
@@ -213,7 +263,8 @@ def main() -> int:
                 xs = [x.get("pairs") for x in lst if x.get("pairs") is not None]
                 ys = [x.get("sub_tps") for x in lst if x.get("pairs") is not None and math.isfinite(x.get("sub_tps", float("nan")))]
                 if xs and ys:
-                    ax.plot(xs, ys, marker="o", label=t)
+                    m, ls = style_for(t)
+                    ax.plot(xs, ys, marker=m, linestyle=ls, label=t)
             ax.set_title(f"Delivered Throughput vs Pairs (payload={payload}B)")
             ax.set_xlabel("Pairs (N publishers = N subscribers)")
             ax.set_ylabel("Delivered throughput (msg/s)")
@@ -242,7 +293,8 @@ def main() -> int:
                     xs.append(rate)
                     ys.append(p99)
                 if xs and ys:
-                    ax.plot(xs, ys, marker="o", label=t)
+                    m, ls = style_for(t)
+                    ax.plot(xs, ys, marker=m, linestyle=ls, label=t)
             ax.set_title(f"P99 latency vs Offered Rate (payload={payload}B)")
             ax.set_xlabel("Offered rate (msg/s)")
             ax.set_ylabel("P99 latency (ms)")
@@ -274,7 +326,8 @@ def main() -> int:
                     xs.append(rate)
                     ys.append(mc)
                 if xs and ys:
-                    ax.plot(xs, ys, marker="o", label=t)
+                    m, ls = style_for(t)
+                    ax.plot(xs, ys, marker=m, linestyle=ls, label=t)
             ax.set_title(f"Max CPU% vs Offered Rate (payload={payload}B)")
             ax.set_xlabel("Offered rate (msg/s)")
             ax.set_ylabel("Max CPU (%)")
@@ -301,7 +354,8 @@ def main() -> int:
                     xs.append(rate)
                     ys.append(mm)
                 if xs and ys:
-                    ax.plot(xs, ys, marker="o", label=t)
+                    m, ls = style_for(t)
+                    ax.plot(xs, ys, marker=m, linestyle=ls, label=t)
             ax.set_title(f"Max Memory% vs Offered Rate (payload={payload}B)")
             ax.set_xlabel("Offered rate (msg/s)")
             ax.set_ylabel("Max Memory (%)")
@@ -320,6 +374,7 @@ def main() -> int:
         out = {}
         for rate in rates:
             fig, ax = plt.subplots(figsize=(7, 4))
+            kb_set = set()
             for t in transports:
                 # gather all records for this (rate, transport) across payloads
                 lst = [r for r in dataset if r["rate"] == rate and r["transport"] == t]
@@ -334,10 +389,16 @@ def main() -> int:
                     if val is None or (not math.isfinite(val)) or (val <= 0):
                         continue
                     # Convert bytes to KB for x-axis
-                    xs.append(r["payload"] / 1024.0)
+                    x_kb = r["payload"] / 1024.0
+                    xs.append(x_kb)
+                    try:
+                        kb_set.add(int(round(x_kb)))
+                    except Exception:
+                        pass
                     ys.append(val)
                 if xs and ys:
-                    ax.plot(xs, ys, marker="o", label=t)
+                    m, ls = style_for(t)
+                    ax.plot(xs, ys, marker=m, linestyle=ls, label=t)
             ax.set_title(f"{title_prefix} vs Payload (rate={rate}/s)")
             ax.set_xlabel("Payload size (KB)")
             ax.set_ylabel(f"{title_prefix} (ms)")
@@ -347,9 +408,23 @@ def main() -> int:
             except Exception:
                 pass
             ax.grid(True, alpha=0.3)
-            # Format ticks as integer KB labels like 1KB, 2KB, ...
-            ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{int(round(v))}KB"))
-            ax.xaxis.set_major_locator(MaxNLocator(nbins='auto', integer=True, min_n_ticks=3))
+            # Use exact payload KBs as ticks; force-include 1KB tick for readability
+            if kb_set:
+                try:
+                    kb_set.add(1)
+                except Exception:
+                    pass
+                xs_sorted = sorted(kb_set)
+                try:
+                    ax.set_xlim(left=min(xs_sorted), right=max(xs_sorted))
+                except Exception:
+                    pass
+                ax.set_xticks(xs_sorted)
+            # Format ticks as plain integer values (in KB) without suffix
+            ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{int(round(v))}"))
+            # Only apply a locator when we didn't set explicit ticks above
+            if not kb_set:
+                ax.xaxis.set_major_locator(MaxNLocator(nbins='auto', integer=True, min_n_ticks=3))
             add_legend_top(ax, fig)
             fn = os.path.join(args.out_dir, f"{metric_key}_vs_payload_rate{rate}.png")
             fig.savefig(fn, dpi=150)
@@ -406,7 +481,8 @@ def main() -> int:
                 lst = sorted(lst, key=lambda x: x["subs"])
                 xs = [x["subs"] for x in lst if math.isfinite(x.get("sub_tps", float("nan")))]
                 ys = [x["sub_tps"] for x in lst if math.isfinite(x.get("sub_tps", float("nan")))]
-                ax.plot(xs, ys, marker="o", label=label)
+                m, ls = style_for(label)
+                ax.plot(xs, ys, marker=m, linestyle=ls, label=label)
             ax.set_title(f"Delivered throughput vs Fanout (payload={payload}B, rate={rate}/s)")
             ax.set_xlabel("Fanout (subscribers)")
             ax.set_ylabel("Delivered throughput (msg/s)")
@@ -429,7 +505,8 @@ def main() -> int:
                     xs.append(x["subs"]) 
                     ys.append(v)
                 if xs and ys:
-                    ax.plot(xs, ys, marker="o", label=label)
+                    m, ls = style_for(label)
+                    ax.plot(xs, ys, marker=m, linestyle=ls, label=label)
             ax.set_title(f"Max CPU% vs Fanout (payload={payload}B, rate={rate}/s)")
             ax.set_xlabel("Fanout (subscribers)")
             ax.set_ylabel("Max CPU (%)")
@@ -452,7 +529,8 @@ def main() -> int:
                     xs.append(x["subs"]) 
                     ys.append(v)
                 if xs and ys:
-                    ax.plot(xs, ys, marker="o", label=label)
+                    m, ls = style_for(label)
+                    ax.plot(xs, ys, marker=m, linestyle=ls, label=label)
             ax.set_title(f"Max Memory% vs Fanout (payload={payload}B, rate={rate}/s)")
             ax.set_xlabel("Fanout (subscribers)")
             ax.set_ylabel("Max Memory (%)")

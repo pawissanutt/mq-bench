@@ -42,15 +42,16 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 # Defaults
 PAIRS=10                # N pub/sub pairs
-TOTAL_RATE=5000         # msgs/s (system-wide)
+TOTAL_RATE=1000         # msgs/s (system-wide)
 DURATION=30             # seconds
 SNAPSHOT=5
 RUN_ID_PREFIX="latency"
 TRANSPORTS=(zenoh redis nats rabbitmq mqtt)
-PAYLOADS=(1024 10240 102400 512000 1048576)  # 1KB,10KB,100KB,500KB,1MB
+# Default payloads (bytes): 1KB, 256KB, 512KB, 768KB, 1024KB (1MB)
+PAYLOADS=(1024 262144 524288 786432 1048576)
 # Keep immutable copies for fallback if user passes empty strings to flags
 DEFAULT_TRANSPORTS=(zenoh redis nats rabbitmq mqtt)
-DEFAULT_PAYLOADS=(1024 10240 102400 512000 1048576)
+DEFAULT_PAYLOADS=(1024 262144 524288 786432 1048576)
 START_SERVICES=0
 DRY_RUN=${DRY_RUN:-0}
 HOST="${HOST:-}" 
