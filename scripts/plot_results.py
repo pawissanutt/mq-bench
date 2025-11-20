@@ -49,6 +49,7 @@ MARKER_MAP = {
     "redis": "x",
     "nats": "P",
     "zenoh": "h",
+    "zenoh_mqtt": "+",
     "rabbitmq": "*",
 }
 
@@ -275,6 +276,67 @@ def main() -> int:
             fig.savefig(fn, dpi=150)
             throughput_pairs_imgs[payload] = os.path.basename(fn)
             plt.close(fig)
+
+    # Latency vs Pairs (when run_id includes n<N>)
+    # Generate for any dataset type (latency-only or full), using p50/p95/p99
+    # Group by payload and transport, aggregate by pairs
+    by_pt_lat_pairs = defaultdict(list)
+    for r in records:
+        if r.get("pairs") is None:
+            continue
+        by_pt_lat_pairs[(r["payload"], r["transport"])].append(r)
+
+    latency_pairs_imgs_p50 = {}
+    latency_pairs_imgs_p95 = {}
+    latency_pairs_imgs_p99 = {}
+
+    def plot_latency_pairs(metric_key: str, title_prefix: str) -> dict:
+        out = {}
+        for payload in payloads:
+            fig, ax = plt.subplots(figsize=(7, 4))
+            for t in transports:
+                lst = by_pt_lat_pairs.get((payload, t), [])
+                if not lst:
+                    continue
+                lst = sorted(lst, key=lambda x: (x.get("pairs") or 0))
+                xs, ys = [], []
+                for x in lst:
+                    pairs = x.get("pairs")
+                    val = x.get(metric_key)
+                    if pairs is None or val is None or (not math.isfinite(val)) or (val <= 0):
+                        continue
+                    xs.append(pairs)
+                    ys.append(val)
+                if xs and ys:
+                    m, ls = style_for(t)
+                    ax.plot(xs, ys, marker=m, linestyle=ls, label=t)
+            if not ax.has_data():
+                plt.close(fig)
+                continue
+            ax.set_title(f"{title_prefix} vs Pairs (payload={payload}B)")
+            ax.set_xlabel("Pairs (N publishers = N subscribers)")
+            ax.set_ylabel(f"{title_prefix} (ms)")
+            ax.grid(True, alpha=0.3)
+            # Use log scales for readability and latency convention
+            try:
+                ax.set_xscale("log")
+            except Exception:
+                pass
+            try:
+                ax.set_yscale("log")
+            except Exception:
+                pass
+            add_legend_top(ax, fig)
+            fn = os.path.join(args.out_dir, f"{metric_key}_vs_pairs_payload{payload}.png")
+            fig.savefig(fn, dpi=150)
+            out[payload] = os.path.basename(fn)
+            plt.close(fig)
+        return out
+
+    if by_pt_lat_pairs:
+        latency_pairs_imgs_p50 = plot_latency_pairs("p50_ms", "P50 latency")
+        latency_pairs_imgs_p95 = plot_latency_pairs("p95_ms", "P95 latency")
+        latency_pairs_imgs_p99 = plot_latency_pairs("p99_ms", "P99 latency")
 
     # P99 vs offered rate (skip if latency-only; it's rate-based summary)
     if not latency_only:
@@ -564,6 +626,19 @@ def main() -> int:
                 f.write("- [Fanout: Max CPU%](#fanout-max-cpu)\n")
             if fanout_mem_imgs:
                 f.write("- [Fanout: Max Memory%](#fanout-max-memory)\n")
+            # TOC entries for pairs plots
+            try:
+                if 'throughput_pairs_imgs' in locals() and throughput_pairs_imgs:
+                    f.write("- [Throughput vs Pairs](#throughput-vs-pairs)\n")
+            except Exception:
+                pass
+            try:
+                if ('latency_pairs_imgs_p50' in locals() and latency_pairs_imgs_p50) or \
+                   ('latency_pairs_imgs_p95' in locals() and latency_pairs_imgs_p95) or \
+                   ('latency_pairs_imgs_p99' in locals() and latency_pairs_imgs_p99):
+                    f.write("- [Latency vs Pairs](#latency-vs-pairs)\n")
+            except Exception:
+                pass
             f.write("\n")
 
             if throughput_imgs:
@@ -585,6 +660,42 @@ def main() -> int:
                             continue
                         f.write(f"### payload={payload}B\n\n")
                         f.write(f"![throughput vs pairs payload {payload}]({img})\n\n")
+            except Exception:
+                pass
+
+            # Insert Latency vs Pairs section if generated
+            try:
+                have_lat_pairs = (
+                    ('latency_pairs_imgs_p50' in locals() and latency_pairs_imgs_p50) or
+                    ('latency_pairs_imgs_p95' in locals() and latency_pairs_imgs_p95) or
+                    ('latency_pairs_imgs_p99' in locals() and latency_pairs_imgs_p99)
+                )
+                if have_lat_pairs:
+                    f.write("## Latency vs Pairs\n\n")
+                    if 'latency_pairs_imgs_p50' in locals() and latency_pairs_imgs_p50:
+                        f.write("### P50 latency\n\n")
+                        for payload in payloads:
+                            img = latency_pairs_imgs_p50.get(payload)
+                            if not img:
+                                continue
+                            f.write(f"#### payload={payload}B\n\n")
+                            f.write(f"![p50 vs pairs payload {payload}]({img})\n\n")
+                    if 'latency_pairs_imgs_p95' in locals() and latency_pairs_imgs_p95:
+                        f.write("### P95 latency\n\n")
+                        for payload in payloads:
+                            img = latency_pairs_imgs_p95.get(payload)
+                            if not img:
+                                continue
+                            f.write(f"#### payload={payload}B\n\n")
+                            f.write(f"![p95 vs pairs payload {payload}]({img})\n\n")
+                    if 'latency_pairs_imgs_p99' in locals() and latency_pairs_imgs_p99:
+                        f.write("### P99 latency\n\n")
+                        for payload in payloads:
+                            img = latency_pairs_imgs_p99.get(payload)
+                            if not img:
+                                continue
+                            f.write(f"#### payload={payload}B\n\n")
+                            f.write(f"![p99 vs pairs payload {payload}]({img})\n\n")
             except Exception:
                 pass
 

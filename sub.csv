@@ -1,2 +1,0 @@
-timestamp,sent_count,received_count,error_count,total_throughput,interval_throughput,latency_ns_p50,latency_ns_p95,latency_ns_p99,latency_ns_min,latency_ns_max,latency_ns_mean
-1762217609,0,0,0,0.00,0.00,0,0,0,0,0,0.00

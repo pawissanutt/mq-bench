@@ -145,6 +145,13 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
             TransportBuilder::connect(config.engine.clone(), config.connect.clone())
                 .await
                 .map_err(|e| anyhow::Error::msg(format!("transport connect error: {}", e)))?;
+        
+        // Optimization: For high publisher counts (e.g. >1000), spawning one task per publisher
+        // with its own RateController (timer) creates massive scheduling overhead.
+        // Instead, we use a single task to drive all publishers in a round-robin fashion
+        // if a rate is specified. If no rate (max speed), we still use per-pub tasks but without timers.
+        
+        let mut pub_handles = Vec::with_capacity(pubs as usize);
         for i in 0..pubs {
             let (t, r, s, k) = map_index(
                 i,
@@ -158,36 +165,89 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
             let pub_handle = transport.create_publisher(&key).await.map_err(|e| {
                 anyhow::Error::msg(format!("create_publisher error ({}): {}", key, e))
             })?;
+            pub_handles.push(pub_handle);
+        }
+
+        if let Some(rate) = config.rate_per_pub {
+            // Single driver task for all publishers
+            // Total target rate = rate * pubs
+            let total_rate = rate * (pubs as f64);
+            println!("[multi_topic] optimizing: single driver task for {} pubs @ total {:.2} msg/s", pubs, total_rate);
+            
             let stats_p = stats.clone();
-            let rate = config.rate_per_pub;
             let payload_size = config.payload_size;
             let stop_flag = stop.clone();
+            
             handles.push(tokio::spawn(async move {
-                let mut rc = rate.map(RateController::new);
+                let mut rc = RateController::new(total_rate);
                 let mut seq = 0u64;
+                let mut pub_idx = 0;
+                let num_pubs = pub_handles.len();
+                
                 loop {
                     if stop_flag.load(Ordering::Relaxed) {
                         break;
                     }
-                    if let Some(r) = &mut rc {
-                        r.wait_for_next().await;
-                    }
+                    rc.wait_for_next().await;
+                    
                     let payload = generate_payload(seq, payload_size);
                     let bytes = Bytes::from(payload);
-                    match pub_handle.publish(bytes).await {
-                        Ok(_) => {
-                            stats_p.record_sent().await;
-                            seq = seq.wrapping_add(1);
-                        }
-                        Err(e) => {
-                            eprintln!("[multi_topic] send error on {}: {}", key, e);
-                            stats_p.record_error().await;
+                    
+                    // Round-robin publish
+                    if let Some(ph) = pub_handles.get(pub_idx) {
+                        match ph.publish(bytes).await {
+                            Ok(_) => {
+                                stats_p.record_sent().await;
+                            }
+                            Err(e) => {
+                                // Log only occasionally to avoid flooding
+                                if seq % 1000 == 0 {
+                                    eprintln!("[multi_topic] send error (sample): {}", e);
+                                }
+                                stats_p.record_error().await;
+                            }
                         }
                     }
+                    
+                    seq = seq.wrapping_add(1);
+                    pub_idx = (pub_idx + 1) % num_pubs;
                 }
-                let _ = pub_handle.shutdown().await;
+                
+                // Shutdown all handles
+                for ph in pub_handles {
+                    let _ = ph.shutdown().await;
+                }
             }));
+        } else {
+            // No rate limit: spawn per-publisher tasks for max throughput
+            for (i, pub_handle) in pub_handles.into_iter().enumerate() {
+                let stats_p = stats.clone();
+                let payload_size = config.payload_size;
+                let stop_flag = stop.clone();
+                handles.push(tokio::spawn(async move {
+                    let mut seq = 0u64;
+                    loop {
+                        if stop_flag.load(Ordering::Relaxed) {
+                            break;
+                        }
+                        // No rate controller wait
+                        let payload = generate_payload(seq, payload_size);
+                        let bytes = Bytes::from(payload);
+                        match pub_handle.publish(bytes).await {
+                            Ok(_) => {
+                                stats_p.record_sent().await;
+                                seq = seq.wrapping_add(1);
+                            }
+                            Err(e) => {
+                                stats_p.record_error().await;
+                            }
+                        }
+                    }
+                    let _ = pub_handle.shutdown().await;
+                }));
+            }
         }
+
         // Wait and stop
         tokio::select! {
             _ = tokio::time::sleep(Duration::from_secs(config.duration_secs)) => {},

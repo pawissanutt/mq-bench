@@ -10,22 +10,22 @@ set -euo pipefail
 #
 # Usage examples:
 #   # Default: payload=1MB, pairs list "10 100 300 1000 3000 5000 10000", rate-per-pub=1 msg/s
-#   scripts/orchestrate_throughput_vs_pairs.sh
+#   scripts/orchestrate_throughput_vs_pairs_v2.sh
 #
 #   # Keep total offered rate fixed at 5000 msg/s across N
-#   scripts/orchestrate_throughput_vs_pairs.sh --total-rate 5000
+#   scripts/orchestrate_throughput_vs_pairs_v2.sh --total-rate 5000
 #
 #   # Use 2 msg/s per publisher and limit to specific transports
-#   scripts/orchestrate_throughput_vs_pairs.sh --rate-per-pub 2 --transports "zenoh nats"
+#   scripts/orchestrate_throughput_vs_pairs_v2.sh --rate-per-pub 2 --transports "zenoh nats"
 #
 #   # Remote host for all brokers (keep default ports)
-#   scripts/orchestrate_throughput_vs_pairs.sh --host 192.168.0.254
+#   scripts/orchestrate_throughput_vs_pairs_v2.sh --host 192.168.0.254
 #
 #   # MQTT multi-broker support (like orchestrate_benchmarks.sh):
-#   scripts/orchestrate_throughput_vs_pairs.sh --transports "mqtt" --mqtt-brokers "mosquitto:127.0.0.1:1883 emqx:127.0.0.1:1884"
+#   scripts/orchestrate_throughput_vs_pairs_v2.sh --transports "mqtt" --mqtt-brokers "mosquitto:127.0.0.1:1883 emqx:127.0.0.1:1884"
 #
 #   # Append new runs into an existing summary:
-#   scripts/orchestrate_throughput_vs_pairs.sh --summary results/throughput_vs_pairs_YYYYMMDD_HHMMSS/raw_data/summary.csv --transports "redis" --pairs-list "10 100"
+#   scripts/orchestrate_throughput_vs_pairs_v2.sh --summary results/throughput_vs_pairs_YYYYMMDD_HHMMSS/raw_data/summary.csv --transports "redis" --pairs-list "10 100"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
@@ -38,8 +38,9 @@ TOTAL_RATE=""                 # alternative: fixed total offered rate (msgs/s)
 DURATION=30
 SNAPSHOT=5
 RUN_ID_PREFIX="scale"
-TRANSPORTS=(zenoh redis nats rabbitmq mqtt)
-DEFAULT_TRANSPORTS=(zenoh redis nats rabbitmq mqtt)
+TRANSPORTS=(zenoh zenoh-mqtt redis nats rabbitmq mqtt)
+DEFAULT_TRANSPORTS=(zenoh zenoh-mqtt redis nats rabbitmq mqtt)
+START_SERVICES=0
 DRY_RUN=${DRY_RUN:-0}
 HOST="${HOST:-}"
 SUMMARY_OVERRIDE="${SUMMARY_OVERRIDE:-}"
@@ -122,6 +123,8 @@ while [[ $# -gt 0 ]]; do
       shift; RUN_ID_PREFIX=${1:-scale} ;;
     --host)
       shift; HOST=${1:-} ;;
+    --start-services)
+      START_SERVICES=1 ;;
     --dry-run)
       DRY_RUN=1 ;;
     --summary)
@@ -145,6 +148,18 @@ while [[ $# -gt 0 ]]; do
 done
 
 init_dirs
+
+# Optionally start local services unless HOST indicates remote
+ensure_services() {
+  if [[ ${START_SERVICES} -eq 1 ]]; then
+    if [[ -n "${HOST}" ]] && [[ "${HOST}" != "127.0.0.1" ]] && [[ "${HOST}" != "localhost" ]]; then
+      log "HOST=${HOST} indicates remote brokers; skipping local service startup"
+    else
+      log "Starting local services via compose_up.sh"
+      run "bash \"${SCRIPT_DIR}/compose_up.sh\""
+    fi
+  fi
+}
 
 # Resolve payload bytes
 PAYLOAD_BYTES="$(to_bytes "${PAYLOAD_TOKEN}")"
@@ -180,8 +195,35 @@ append_summary_from_artifacts() {
   last_sub=$(tail -n +2 "${sub_csv}" 2>/dev/null | tail -n1 || true)
   last_pub=$(tail -n +2 "${pub_csv}" 2>/dev/null | tail -n1 || true)
   if [[ -z "${last_sub}" ]]; then log "WARN: No subscriber data for ${run_id}"; return 0; fi
+  
+  # Calculate average instantaneous throughput from the 3 middle rows to capture steady state
+  # Columns: timestamp,sent,recv,err,total_tps,interval_tps,...
+  # We want column 6 (interval_tps)
+  local avg_tps
+  avg_tps=$(awk -F, '
+    NR>1 && NF>=6 { # Skip header and ensure enough columns
+        rows[count++] = $6 
+    }
+    END {
+        if (count == 0) { print "0.00"; exit }
+        if (count <= 3) {
+            for (i=0; i<count; i++) sum += rows[i]
+            printf "%.2f", sum/count
+        } else {
+            # Pick 3 rows from the middle
+            start = int((count - 3) / 2)
+            for (i=start; i<start+3; i++) sum += rows[i]
+            printf "%.2f", sum/3
+        }
+    }
+  ' "${sub_csv}")
+
   local _ts _sent recv _err tps _it p50 p95 p99 _min _max _mean
   IFS=, read -r _ts _sent recv _err tps _it p50 p95 p99 _min _max _mean <<<"${last_sub}"
+  
+  # Use the averaged instantaneous TPS instead of the final cumulative TPS
+  tps="${avg_tps}"
+
   local pub_tps sent; pub_tps=""; sent="${_sent}"
   if [[ -n "${last_pub}" ]]; then
     local _pts psent _prev _perr ptt _pit _a _b _c _d _e _f
@@ -228,6 +270,14 @@ run_combo() {
     zenoh)
       if [[ -n "${HOST}" ]]; then host_env="ENDPOINT_SUB=tcp/${HOST}:7447 ENDPOINT_PUB=tcp/${HOST}:7448"; fi
       run "ENGINE=zenoh ${host_env} ${env_common} bash \"${SCRIPT_DIR}/run_multi_topic_perkey.sh\" \"${rid}\"" ;;
+    zenoh-mqtt)
+      # Mixed engines via bridge: subscribers over MQTT on 1888 (bridge), publishers over zenoh on 7448
+      if [[ -n "${HOST}" ]]; then
+        host_env="ENGINE_SUB=mqtt MQTT_HOST=${HOST} MQTT_PORT=1888 ENGINE_PUB=zenoh ENDPOINT_PUB=tcp/${HOST}:7448"
+      else
+        host_env="ENGINE_SUB=mqtt MQTT_HOST=127.0.0.1 MQTT_PORT=1888 ENGINE_PUB=zenoh ENDPOINT_PUB=tcp/127.0.0.1:7448"
+      fi
+      run "${host_env} ${env_common} bash \"${SCRIPT_DIR}/run_multi_topic_perkey.sh\" \"${rid}\"" ;;
     redis)
       if [[ -n "${HOST}" ]]; then host_env="REDIS_URL=redis://${HOST}:6379"; fi
       run "ENGINE=redis ${host_env} ${env_common} bash \"${SCRIPT_DIR}/run_multi_topic_perkey.sh\" \"${rid}\"" ;;
@@ -261,6 +311,7 @@ run_combo() {
 main() {
   init_dirs
   log "Throughput vs pairs benchmark → ${BENCH_DIR}"
+  ensure_services
 
   # Resolve per-run parameters
   local payload_bytes="${PAYLOAD_BYTES}"

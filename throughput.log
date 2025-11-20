@@ -1,0 +1,1032 @@
+nohup: ignoring input
+[22:13:01] Throughput vs pairs benchmark → /home/cc/mq-bench/results/throughput_vs_pairs_20251120_221301
+[22:13:01] Resolved: SUMMARY_CSV=/home/cc/mq-bench/results/throughput_vs_pairs_20251120_221301/raw_data/summary.csv | PLOTS_DIR=/home/cc/mq-bench/results/throughput_vs_pairs_20251120_221301/plots | RAW_DIR=/home/cc/mq-bench/results/throughput_vs_pairs_20251120_221301/raw_data
+[22:13:01] Resolved payload (bytes): 65536
+[22:13:01] Pairs list: 10 100 300 1000 2000 3000 5000 7000 10000 | rate-per-pub=1 | total-rate=
+[22:13:01] Run: transport=zenoh pairs=10 payload=65536B per_pub_rate=1/s total_rate=10/s
+[run_multi_topic_perkey] scale_20251120_221301_zenoh_p65536_n10_r1 (ENGINE=zenoh)
+Dims: T=10 R=1 S=1 K=1 | subs=10 pubs=10 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/192.168.0.254:7447 pub=tcp/192.168.0.254:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine zenoh --endpoint tcp/192.168.0.254:7447 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --subscribers 10 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_221301_zenoh_p65536_n10_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_221301_zenoh_p65536_n10_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine zenoh --endpoint tcp/192.168.0.254:7448 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --publishers 10 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_221301_zenoh_p65536_n10_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_221301_zenoh_p65536_n10_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.20 tps=10.21 | SUB recv=41 itps=8.20 p99=5.03ms
+[status] PUB sent=101 itps=10.00 tps=10.10 | SUB recv=91 itps=10.00 p99=5.03ms
+[status] PUB sent=151 itps=10.00 tps=10.07 | SUB recv=141 itps=10.00 p99=5.03ms
+[status] PUB sent=201 itps=10.00 tps=10.05 | SUB recv=191 itps=10.00 p99=5.03ms
+[status] PUB sent=251 itps=10.00 tps=10.04 | SUB recv=241 itps=10.00 p99=2.17ms
+\n=== Summary (scale_20251120_221301_zenoh_p65536_n10_r1) ===
+=== Summary ===
+Publisher: sent=301 total_tps=10.03
+Subscriber: recv=291 total_tps=10.04 p50=1.69ms p95=1.91ms p99=2.17ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_221301_zenoh_p65536_n10_r1/fanout_multi_topic_perkey
+Stopping subscribers (1473756)
+[22:13:47] Run: transport=zenoh pairs=100 payload=65536B per_pub_rate=1/s total_rate=100/s
+[run_multi_topic_perkey] scale_20251120_221347_zenoh_p65536_n100_r1 (ENGINE=zenoh)
+Dims: T=100 R=1 S=1 K=1 | subs=100 pubs=100 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/192.168.0.254:7447 pub=tcp/192.168.0.254:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine zenoh --endpoint tcp/192.168.0.254:7447 --topic-prefix bench/pair --tenants 100 --regions 1 --services 1 --shards 1 --subscribers 100 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_221347_zenoh_p65536_n100_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_221347_zenoh_p65536_n100_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine zenoh --endpoint tcp/192.168.0.254:7448 --topic-prefix bench/pair --tenants 100 --regions 1 --services 1 --shards 1 --publishers 100 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_221347_zenoh_p65536_n100_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_221347_zenoh_p65536_n100_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=501 itps=100.21 tps=100.28 | SUB recv=400 itps=80.00 p99=1.69ms
+[status] PUB sent=1001 itps=99.99 tps=100.13 | SUB recv=900 itps=100.01 p99=1.60ms
+[status] PUB sent=1501 itps=100.01 tps=100.09 | SUB recv=1400 itps=99.99 p99=1.60ms
+[status] PUB sent=2001 itps=99.99 tps=100.07 | SUB recv=1900 itps=100.01 p99=1.57ms
+[status] PUB sent=2501 itps=100.01 tps=100.06 | SUB recv=2400 itps=100.00 p99=1.57ms
+\n=== Summary (scale_20251120_221347_zenoh_p65536_n100_r1) ===
+=== Summary ===
+Publisher: sent=3001 total_tps=100.05
+Subscriber: recv=2900 total_tps=100.05 p50=1.29ms p95=1.44ms p99=1.56ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_221347_zenoh_p65536_n100_r1/fanout_multi_topic_perkey
+Stopping subscribers (1474240)
+[22:14:33] Run: transport=zenoh pairs=300 payload=65536B per_pub_rate=1/s total_rate=300/s
+[run_multi_topic_perkey] scale_20251120_221433_zenoh_p65536_n300_r1 (ENGINE=zenoh)
+Dims: T=300 R=1 S=1 K=1 | subs=300 pubs=300 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/192.168.0.254:7447 pub=tcp/192.168.0.254:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine zenoh --endpoint tcp/192.168.0.254:7447 --topic-prefix bench/pair --tenants 300 --regions 1 --services 1 --shards 1 --subscribers 300 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_221433_zenoh_p65536_n300_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_221433_zenoh_p65536_n300_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine zenoh --endpoint tcp/192.168.0.254:7448 --topic-prefix bench/pair --tenants 300 --regions 1 --services 1 --shards 1 --publishers 300 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_221433_zenoh_p65536_n300_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_221433_zenoh_p65536_n300_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=1501 itps=300.23 tps=300.67 | SUB recv=1198 itps=239.62 p99=2.02ms
+[status] PUB sent=3001 itps=299.99 tps=300.33 | SUB recv=2698 itps=300.00 p99=1.75ms
+[status] PUB sent=4501 itps=300.00 tps=300.22 | SUB recv=4198 itps=299.98 p99=1.78ms
+[status] PUB sent=6001 itps=299.96 tps=300.15 | SUB recv=5698 itps=299.97 p99=1.84ms
+[status] PUB sent=7501 itps=300.05 tps=300.13 | SUB recv=7198 itps=300.02 p99=1.81ms
+\n=== Summary (scale_20251120_221433_zenoh_p65536_n300_r1) ===
+=== Summary ===
+Publisher: sent=9001 total_tps=300.11
+Subscriber: recv=8698 total_tps=300.29 p50=1.32ms p95=1.58ms p99=1.79ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_221433_zenoh_p65536_n300_r1/fanout_multi_topic_perkey
+Stopping subscribers (1474664)
+[22:15:19] Run: transport=zenoh pairs=1000 payload=65536B per_pub_rate=1/s total_rate=1000/s
+[run_multi_topic_perkey] scale_20251120_221519_zenoh_p65536_n1000_r1 (ENGINE=zenoh)
+Dims: T=1000 R=1 S=1 K=1 | subs=1000 pubs=1000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/192.168.0.254:7447 pub=tcp/192.168.0.254:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine zenoh --endpoint tcp/192.168.0.254:7447 --topic-prefix bench/pair --tenants 1000 --regions 1 --services 1 --shards 1 --subscribers 1000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_221519_zenoh_p65536_n1000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_221519_zenoh_p65536_n1000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine zenoh --endpoint tcp/192.168.0.254:7448 --topic-prefix bench/pair --tenants 1000 --regions 1 --services 1 --shards 1 --publishers 1000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_221519_zenoh_p65536_n1000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_221519_zenoh_p65536_n1000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=4971 itps=994.29 tps=1000.95 | SUB recv=3893 itps=778.58 p99=2.86ms
+[status] PUB sent=9971 itps=1000.01 tps=1000.48 | SUB recv=8893 itps=1000.14 p99=2.49ms
+[status] PUB sent=14971 itps=999.90 tps=1000.29 | SUB recv=13893 itps=999.99 p99=2.42ms
+[status] PUB sent=19971 itps=999.90 tps=1000.19 | SUB recv=18893 itps=999.89 p99=2.37ms
+[status] PUB sent=24971 itps=1000.13 tps=1000.18 | SUB recv=23891 itps=999.54 p99=2.39ms
+[status] PUB sent=29971 itps=999.94 tps=1000.14 | SUB recv=28891 itps=1000.02 p99=2.37ms
+\n=== Summary (scale_20251120_221519_zenoh_p65536_n1000_r1) ===
+=== Summary ===
+Publisher: sent=29971 total_tps=1000.14
+Subscriber: recv=28891 total_tps=1000.46 p50=1.33ms p95=1.97ms p99=2.37ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_221519_zenoh_p65536_n1000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1475089)
+[22:16:10] Run: transport=zenoh pairs=2000 payload=65536B per_pub_rate=1/s total_rate=2000/s
+[run_multi_topic_perkey] scale_20251120_221610_zenoh_p65536_n2000_r1 (ENGINE=zenoh)
+Dims: T=2000 R=1 S=1 K=1 | subs=2000 pubs=2000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/192.168.0.254:7447 pub=tcp/192.168.0.254:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine zenoh --endpoint tcp/192.168.0.254:7447 --topic-prefix bench/pair --tenants 2000 --regions 1 --services 1 --shards 1 --subscribers 2000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_221610_zenoh_p65536_n2000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_221610_zenoh_p65536_n2000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine zenoh --endpoint tcp/192.168.0.254:7448 --topic-prefix bench/pair --tenants 2000 --regions 1 --services 1 --shards 1 --publishers 2000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_221610_zenoh_p65536_n2000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_221610_zenoh_p65536_n2000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=9761 itps=1952.11 tps=1999.92 | SUB recv=7496 itps=1499.33 p99=1.61ms
+[status] PUB sent=19761 itps=1999.83 tps=1999.87 | SUB recv=17497 itps=2000.16 p99=1.33ms
+[status] PUB sent=29761 itps=2000.22 tps=1999.99 | SUB recv=27494 itps=1999.50 p99=1.44ms
+[status] PUB sent=39761 itps=1999.89 tps=1999.96 | SUB recv=37496 itps=2000.25 p99=1.45ms
+[status] PUB sent=49761 itps=1999.75 tps=1999.92 | SUB recv=47497 itps=2000.02 p99=1.52ms
+[status] PUB sent=59761 itps=2000.21 tps=1999.97 | SUB recv=57497 itps=2000.24 p99=1.51ms
+\n=== Summary (scale_20251120_221610_zenoh_p65536_n2000_r1) ===
+=== Summary ===
+Publisher: sent=59761 total_tps=1999.97
+Subscriber: recv=57497 total_tps=2001.28 p50=0.98ms p95=1.20ms p99=1.51ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_221610_zenoh_p65536_n2000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1475523)
+[22:17:01] Run: transport=zenoh pairs=3000 payload=65536B per_pub_rate=1/s total_rate=3000/s
+[run_multi_topic_perkey] scale_20251120_221701_zenoh_p65536_n3000_r1 (ENGINE=zenoh)
+Dims: T=3000 R=1 S=1 K=1 | subs=3000 pubs=3000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/192.168.0.254:7447 pub=tcp/192.168.0.254:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine zenoh --endpoint tcp/192.168.0.254:7447 --topic-prefix bench/pair --tenants 3000 --regions 1 --services 1 --shards 1 --subscribers 3000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_221701_zenoh_p65536_n3000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_221701_zenoh_p65536_n3000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine zenoh --endpoint tcp/192.168.0.254:7448 --topic-prefix bench/pair --tenants 3000 --regions 1 --services 1 --shards 1 --publishers 3000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_221701_zenoh_p65536_n3000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_221701_zenoh_p65536_n3000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=14101 itps=2820.41 tps=3001.52 | SUB recv=10389 itps=2078.10 p99=1.32ms
+[status] PUB sent=29101 itps=2999.49 tps=3000.47 | SUB recv=25389 itps=3000.05 p99=1.39ms
+[status] PUB sent=44101 itps=3000.13 tps=3000.36 | SUB recv=40392 itps=3000.31 p99=1.35ms
+[status] PUB sent=59101 itps=2999.97 tps=3000.26 | SUB recv=55390 itps=2999.39 p99=1.88ms
+[status] PUB sent=74101 itps=2999.96 tps=3000.20 | SUB recv=70389 itps=3000.18 p99=2.19ms
+[status] PUB sent=89101 itps=3000.25 tps=3000.21 | SUB recv=85391 itps=3000.44 p99=2.23ms
+\n=== Summary (scale_20251120_221701_zenoh_p65536_n3000_r1) ===
+=== Summary ===
+Publisher: sent=89101 total_tps=3000.21
+Subscriber: recv=85391 total_tps=3001.51 p50=0.83ms p95=1.34ms p99=2.23ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_221701_zenoh_p65536_n3000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1475979)
+[22:17:53] Run: transport=zenoh pairs=5000 payload=65536B per_pub_rate=1/s total_rate=5000/s
+[run_multi_topic_perkey] scale_20251120_221753_zenoh_p65536_n5000_r1 (ENGINE=zenoh)
+Dims: T=5000 R=1 S=1 K=1 | subs=5000 pubs=5000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/192.168.0.254:7447 pub=tcp/192.168.0.254:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine zenoh --endpoint tcp/192.168.0.254:7447 --topic-prefix bench/pair --tenants 5000 --regions 1 --services 1 --shards 1 --subscribers 5000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_221753_zenoh_p65536_n5000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_221753_zenoh_p65536_n5000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine zenoh --endpoint tcp/192.168.0.254:7448 --topic-prefix bench/pair --tenants 5000 --regions 1 --services 1 --shards 1 --publishers 5000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_221753_zenoh_p65536_n5000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_221753_zenoh_p65536_n5000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=19901 itps=3978.74 tps=5003.72 | SUB recv=10336 itps=2067.14 p99=1.41ms
+[status] PUB sent=44901 itps=4999.62 tps=5001.44 | SUB recv=35336 itps=4999.90 p99=1.84ms
+[status] PUB sent=69901 itps=4999.95 tps=5000.91 | SUB recv=60336 itps=5000.17 p99=1.76ms
+[status] PUB sent=94901 itps=5000.20 tps=5000.72 | SUB recv=85335 itps=5000.16 p99=1.85ms
+[status] PUB sent=119901 itps=4999.48 tps=5000.46 | SUB recv=110335 itps=4999.49 p99=1.84ms
+[status] PUB sent=144901 itps=5000.93 tps=5000.54 | SUB recv=135334 itps=4999.95 p99=1.82ms
+\n=== Summary (scale_20251120_221753_zenoh_p65536_n5000_r1) ===
+=== Summary ===
+Publisher: sent=144901 total_tps=5000.54
+Subscriber: recv=135334 total_tps=5001.18 p50=0.67ms p95=1.03ms p99=1.82ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_221753_zenoh_p65536_n5000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1476554)
+[22:18:44] Run: transport=zenoh pairs=7000 payload=65536B per_pub_rate=1/s total_rate=7000/s
+[run_multi_topic_perkey] scale_20251120_221844_zenoh_p65536_n7000_r1 (ENGINE=zenoh)
+Dims: T=7000 R=1 S=1 K=1 | subs=7000 pubs=7000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/192.168.0.254:7447 pub=tcp/192.168.0.254:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine zenoh --endpoint tcp/192.168.0.254:7447 --topic-prefix bench/pair --tenants 7000 --regions 1 --services 1 --shards 1 --subscribers 7000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_221844_zenoh_p65536_n7000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_221844_zenoh_p65536_n7000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine zenoh --endpoint tcp/192.168.0.254:7448 --topic-prefix bench/pair --tenants 7000 --regions 1 --services 1 --shards 1 --publishers 7000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_221844_zenoh_p65536_n7000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_221844_zenoh_p65536_n7000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=20449 itps=4089.57 tps=6948.86 | SUB recv=2469 itps=493.86 p99=614.99ms
+[status] PUB sent=55325 itps=6976.02 tps=6965.95 | SUB recv=37532 itps=7012.79 p99=32.98ms
+[status] PUB sent=90325 itps=6999.84 tps=6979.05 | SUB recv=72573 itps=7008.44 p99=31.01ms
+[status] PUB sent=125291 itps=6993.41 tps=6983.05 | SUB recv=107470 itps=6978.53 p99=28.98ms
+[status] PUB sent=160498 itps=7007.27 tps=6988.35 | SUB recv=142411 itps=6989.04 p99=23.89ms
+[status] PUB sent=195308 itps=6995.15 tps=6989.56 | SUB recv=177609 itps=7038.93 p99=17.51ms
+\n=== Summary (scale_20251120_221844_zenoh_p65536_n7000_r1) ===
+=== Summary ===
+Publisher: sent=195308 total_tps=6989.56
+Subscriber: recv=199060 total_tps=6473.83 p50=0.67ms p95=2.37ms p99=16.09ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_221844_zenoh_p65536_n7000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1477018)
+[22:19:35] Run: transport=zenoh pairs=10000 payload=65536B per_pub_rate=1/s total_rate=10000/s
+[run_multi_topic_perkey] scale_20251120_221935_zenoh_p65536_n10000_r1 (ENGINE=zenoh)
+Dims: T=10000 R=1 S=1 K=1 | subs=10000 pubs=10000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/192.168.0.254:7447 pub=tcp/192.168.0.254:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine zenoh --endpoint tcp/192.168.0.254:7447 --topic-prefix bench/pair --tenants 10000 --regions 1 --services 1 --shards 1 --subscribers 10000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_221935_zenoh_p65536_n10000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_221935_zenoh_p65536_n10000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine zenoh --endpoint tcp/192.168.0.254:7448 --topic-prefix bench/pair --tenants 10000 --regions 1 --services 1 --shards 1 --publishers 10000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_221935_zenoh_p65536_n10000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_221935_zenoh_p65536_n10000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=1401 itps=280.18 tps=9811.75 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51053 itps=9930.80 tps=9927.49 | SUB recv=583 itps=116.60 p99=1849.69ms
+[status] PUB sent=99377 itps=9665.21 tps=9798.20 | SUB recv=44978 itps=8878.68 p99=129.96ms
+[status] PUB sent=150271 itps=10179.26 tps=9924.02 | SUB recv=95091 itps=10022.61 p99=45.09ms
+[status] PUB sent=201254 itps=10195.65 tps=9991.45 | SUB recv=146283 itps=10239.19 p99=37.62ms
+[status] PUB sent=250847 itps=9919.03 tps=9977.05 | SUB recv=196348 itps=10012.22 p99=33.75ms
+[status] PUB sent=299648 itps=9760.08 tps=9941.06 | SUB recv=246104 itps=9949.32 p99=30.69ms
+\n=== Summary (scale_20251120_221935_zenoh_p65536_n10000_r1) ===
+=== Summary ===
+Publisher: sent=299648 total_tps=9941.06
+Subscriber: recv=254875 total_tps=7467.93 p50=0.67ms p95=4.20ms p99=30.15ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_221935_zenoh_p65536_n10000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1477484)
+[22:20:31] Run: transport=redis pairs=10 payload=65536B per_pub_rate=1/s total_rate=10/s
+[run_multi_topic_perkey] scale_20251120_222031_redis_p65536_n10_r1 (ENGINE=redis)
+Dims: T=10 R=1 S=1 K=1 | subs=10 pubs=10 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --subscribers 10 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_222031_redis_p65536_n10_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_222031_redis_p65536_n10_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --publishers 10 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_222031_redis_p65536_n10_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_222031_redis_p65536_n10_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.20 tps=10.22 | SUB recv=41 itps=8.20 p99=2.58ms
+[status] PUB sent=101 itps=10.00 tps=10.11 | SUB recv=91 itps=10.00 p99=2.87ms
+[status] PUB sent=151 itps=10.00 tps=10.07 | SUB recv=141 itps=10.00 p99=2.81ms
+[status] PUB sent=201 itps=10.00 tps=10.05 | SUB recv=191 itps=10.00 p99=2.81ms
+[status] PUB sent=251 itps=10.00 tps=10.04 | SUB recv=241 itps=10.00 p99=2.79ms
+\n=== Summary (scale_20251120_222031_redis_p65536_n10_r1) ===
+=== Summary ===
+Publisher: sent=301 total_tps=10.04
+Subscriber: recv=291 total_tps=10.04 p50=1.61ms p95=1.88ms p99=2.79ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_222031_redis_p65536_n10_r1/fanout_multi_topic_perkey
+Stopping subscribers (1477950)
+[22:21:17] Run: transport=redis pairs=100 payload=65536B per_pub_rate=1/s total_rate=100/s
+[run_multi_topic_perkey] scale_20251120_222117_redis_p65536_n100_r1 (ENGINE=redis)
+Dims: T=100 R=1 S=1 K=1 | subs=100 pubs=100 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 100 --regions 1 --services 1 --shards 1 --subscribers 100 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_222117_redis_p65536_n100_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_222117_redis_p65536_n100_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 100 --regions 1 --services 1 --shards 1 --publishers 100 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_222117_redis_p65536_n100_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_222117_redis_p65536_n100_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=495 itps=98.98 tps=100.20 | SUB recv=395 itps=78.99 p99=2.47ms
+[status] PUB sent=995 itps=100.00 tps=100.10 | SUB recv=895 itps=100.00 p99=2.47ms
+[status] PUB sent=1495 itps=100.00 tps=100.07 | SUB recv=1395 itps=100.00 p99=2.56ms
+[status] PUB sent=1995 itps=100.00 tps=100.05 | SUB recv=1895 itps=100.00 p99=2.56ms
+[status] PUB sent=2495 itps=100.00 tps=100.04 | SUB recv=2395 itps=99.98 p99=2.56ms
+[status] PUB sent=2995 itps=100.01 tps=100.03 | SUB recv=2895 itps=100.01 p99=2.50ms
+\n=== Summary (scale_20251120_222117_redis_p65536_n100_r1) ===
+=== Summary ===
+Publisher: sent=2995 total_tps=100.03
+Subscriber: recv=2895 total_tps=100.06 p50=1.49ms p95=1.73ms p99=2.50ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_222117_redis_p65536_n100_r1/fanout_multi_topic_perkey
+Stopping subscribers (1478364)
+[22:22:08] Run: transport=redis pairs=300 payload=65536B per_pub_rate=1/s total_rate=300/s
+[run_multi_topic_perkey] scale_20251120_222208_redis_p65536_n300_r1 (ENGINE=redis)
+Dims: T=300 R=1 S=1 K=1 | subs=300 pubs=300 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 300 --regions 1 --services 1 --shards 1 --subscribers 300 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_222208_redis_p65536_n300_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_222208_redis_p65536_n300_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 300 --regions 1 --services 1 --shards 1 --publishers 300 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_222208_redis_p65536_n300_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_222208_redis_p65536_n300_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=1453 itps=290.60 tps=300.26 | SUB recv=1153 itps=230.58 p99=2.75ms
+[status] PUB sent=2953 itps=299.99 tps=300.12 | SUB recv=2652 itps=299.85 p99=2.71ms
+[status] PUB sent=4453 itps=299.95 tps=300.07 | SUB recv=4152 itps=300.00 p99=2.63ms
+[status] PUB sent=5953 itps=300.04 tps=300.06 | SUB recv=5652 itps=300.00 p99=2.65ms
+[status] PUB sent=7453 itps=299.96 tps=300.04 | SUB recv=7153 itps=300.14 p99=2.65ms
+[status] PUB sent=8953 itps=300.03 tps=300.04 | SUB recv=8653 itps=300.01 p99=2.60ms
+\n=== Summary (scale_20251120_222208_redis_p65536_n300_r1) ===
+=== Summary ===
+Publisher: sent=8953 total_tps=300.04
+Subscriber: recv=8653 total_tps=300.11 p50=1.45ms p95=1.71ms p99=2.60ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_222208_redis_p65536_n300_r1/fanout_multi_topic_perkey
+Stopping subscribers (1478788)
+[22:22:59] Run: transport=redis pairs=1000 payload=65536B per_pub_rate=1/s total_rate=1000/s
+[run_multi_topic_perkey] scale_20251120_222259_redis_p65536_n1000_r1 (ENGINE=redis)
+Dims: T=1000 R=1 S=1 K=1 | subs=1000 pubs=1000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 1000 --regions 1 --services 1 --shards 1 --subscribers 1000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_222259_redis_p65536_n1000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_222259_redis_p65536_n1000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 1000 --regions 1 --services 1 --shards 1 --publishers 1000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_222259_redis_p65536_n1000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_222259_redis_p65536_n1000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=4671 itps=934.10 tps=1000.22 | SUB recv=3663 itps=732.64 p99=1.57ms
+[status] PUB sent=9671 itps=1000.02 tps=1000.12 | SUB recv=8663 itps=1000.01 p99=1.51ms
+[status] PUB sent=14671 itps=1000.02 tps=1000.09 | SUB recv=13663 itps=999.97 p99=1.53ms
+[status] PUB sent=19671 itps=999.87 tps=1000.03 | SUB recv=18664 itps=1000.18 p99=1.53ms
+[status] PUB sent=24671 itps=1000.15 tps=1000.06 | SUB recv=23663 itps=999.85 p99=1.51ms
+[status] PUB sent=29671 itps=999.92 tps=1000.03 | SUB recv=28663 itps=1000.00 p99=1.50ms
+\n=== Summary (scale_20251120_222259_redis_p65536_n1000_r1) ===
+=== Summary ===
+Publisher: sent=29671 total_tps=1000.03
+Subscriber: recv=28663 total_tps=1000.03 p50=1.09ms p95=1.34ms p99=1.50ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_222259_redis_p65536_n1000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1479213)
+[22:23:50] Run: transport=redis pairs=2000 payload=65536B per_pub_rate=1/s total_rate=2000/s
+[run_multi_topic_perkey] scale_20251120_222350_redis_p65536_n2000_r1 (ENGINE=redis)
+Dims: T=2000 R=1 S=1 K=1 | subs=2000 pubs=2000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 2000 --regions 1 --services 1 --shards 1 --subscribers 2000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_222350_redis_p65536_n2000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_222350_redis_p65536_n2000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 2000 --regions 1 --services 1 --shards 1 --publishers 2000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_222350_redis_p65536_n2000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_222350_redis_p65536_n2000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=5216 itps=1043.18 tps=1177.79 | SUB recv=3963 itps=792.62 p99=1.69ms
+[status] PUB sent=11285 itps=1213.79 tps=1196.88 | SUB recv=10004 itps=1208.12 p99=1.60ms
+[status] PUB sent=17432 itps=1229.38 tps=1208.14 | SUB recv=16248 itps=1248.83 p99=1.57ms
+[status] PUB sent=23545 itps=1222.58 tps=1211.86 | SUB recv=22253 itps=1201.05 p99=1.56ms
+[status] PUB sent=29464 itps=1183.83 tps=1206.12 | SUB recv=28271 itps=1203.60 p99=1.58ms
+[status] PUB sent=35644 itps=1235.99 tps=1211.20 | SUB recv=34450 itps=1235.80 p99=1.57ms
+\n=== Summary (scale_20251120_222350_redis_p65536_n2000_r1) ===
+=== Summary ===
+Publisher: sent=35644 total_tps=1211.20
+Subscriber: recv=34450 total_tps=1212.20 p50=1.10ms p95=1.37ms p99=1.57ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_222350_redis_p65536_n2000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1479639)
+[22:24:42] Run: transport=redis pairs=3000 payload=65536B per_pub_rate=1/s total_rate=3000/s
+[run_multi_topic_perkey] scale_20251120_222442_redis_p65536_n3000_r1 (ENGINE=redis)
+Dims: T=3000 R=1 S=1 K=1 | subs=3000 pubs=3000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 3000 --regions 1 --services 1 --shards 1 --subscribers 3000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_222442_redis_p65536_n3000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_222442_redis_p65536_n3000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 3000 --regions 1 --services 1 --shards 1 --publishers 3000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_222442_redis_p65536_n3000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_222442_redis_p65536_n3000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=4519 itps=903.76 tps=1143.63 | SUB recv=3258 itps=651.61 p99=1.75ms
+[status] PUB sent=10370 itps=1170.18 tps=1158.46 | SUB recv=9112 itps=1170.89 p99=1.71ms
+[status] PUB sent=16649 itps=1255.87 tps=1193.37 | SUB recv=15366 itps=1250.80 p99=1.66ms
+[status] PUB sent=22853 itps=1240.81 tps=1205.89 | SUB recv=21615 itps=1249.73 p99=1.63ms
+[status] PUB sent=28681 itps=1165.59 tps=1197.47 | SUB recv=27403 itps=1157.66 p99=1.63ms
+[status] PUB sent=34669 itps=1197.54 tps=1197.49 | SUB recv=33552 itps=1229.79 p99=1.60ms
+\n=== Summary (scale_20251120_222442_redis_p65536_n3000_r1) ===
+=== Summary ===
+Publisher: sent=34669 total_tps=1197.49
+Subscriber: recv=33552 total_tps=1200.68 p50=1.13ms p95=1.42ms p99=1.60ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_222442_redis_p65536_n3000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1480065)
+[22:25:33] Run: transport=redis pairs=5000 payload=65536B per_pub_rate=1/s total_rate=5000/s
+[run_multi_topic_perkey] scale_20251120_222533_redis_p65536_n5000_r1 (ENGINE=redis)
+Dims: T=5000 R=1 S=1 K=1 | subs=5000 pubs=5000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 5000 --regions 1 --services 1 --shards 1 --subscribers 5000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_222533_redis_p65536_n5000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_222533_redis_p65536_n5000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 5000 --regions 1 --services 1 --shards 1 --publishers 5000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_222533_redis_p65536_n5000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_222533_redis_p65536_n5000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=1782 itps=356.40 tps=1035.62 | SUB recv=720 itps=144.01 p99=2.37ms
+[status] PUB sent=7329 itps=1109.41 tps=1090.51 | SUB recv=6104 itps=1076.77 p99=1.96ms
+[status] PUB sent=13304 itps=1194.93 tps=1135.06 | SUB recv=12107 itps=1200.52 p99=1.78ms
+[status] PUB sent=19390 itps=1217.24 tps=1159.63 | SUB recv=18174 itps=1213.48 p99=1.72ms
+[status] PUB sent=25329 itps=1187.82 tps=1166.12 | SUB recv=24032 itps=1171.56 p99=1.69ms
+[status] PUB sent=31345 itps=1203.15 tps=1173.05 | SUB recv=30057 itps=1205.08 p99=1.66ms
+\n=== Summary (scale_20251120_222533_redis_p65536_n5000_r1) ===
+=== Summary ===
+Publisher: sent=31345 total_tps=1173.05
+Subscriber: recv=30057 total_tps=1169.01 p50=1.16ms p95=1.48ms p99=1.66ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_222533_redis_p65536_n5000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1480491)
+[22:26:24] Run: transport=redis pairs=7000 payload=65536B per_pub_rate=1/s total_rate=7000/s
+[run_multi_topic_perkey] scale_20251120_222624_redis_p65536_n7000_r1 (ENGINE=redis)
+Dims: T=7000 R=1 S=1 K=1 | subs=7000 pubs=7000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 7000 --regions 1 --services 1 --shards 1 --subscribers 7000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_222624_redis_p65536_n7000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_222624_redis_p65536_n7000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 7000 --regions 1 --services 1 --shards 1 --publishers 7000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_222624_redis_p65536_n7000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_222624_redis_p65536_n7000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=561 itps=112.22 tps=922.14 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=5212 itps=930.12 tps=929.25 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=10136 itps=984.82 tps=955.44 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=15130 itps=998.86 tps=969.35 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=20373 itps=1048.60 tps=988.58 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=25336 itps=992.56 tps=989.36 | SUB recv=0 itps=0.00 p99=0.00ms
+\n=== Summary (scale_20251120_222624_redis_p65536_n7000_r1) ===
+=== Summary ===
+Publisher: sent=25336 total_tps=989.36
+Subscriber: recv=0 total_tps=0.00 p50=0.00ms p95=0.00ms p99=0.00ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_222624_redis_p65536_n7000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1480943)
+[22:27:20] Run: transport=redis pairs=10000 payload=65536B per_pub_rate=1/s total_rate=10000/s
+[run_multi_topic_perkey] scale_20251120_222720_redis_p65536_n10000_r1 (ENGINE=redis)
+Dims: T=10000 R=1 S=1 K=1 | subs=10000 pubs=10000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 10000 --regions 1 --services 1 --shards 1 --subscribers 10000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_222720_redis_p65536_n10000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_222720_redis_p65536_n10000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine redis --connect url=redis://192.168.0.254:6379 --topic-prefix bench/pair --tenants 10000 --regions 1 --services 1 --shards 1 --publishers 10000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_222720_redis_p65536_n10000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_222720_redis_p65536_n10000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=441 itps=88.20 tps=1135.98 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=5548 itps=1021.42 tps=1029.67 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=10299 itps=950.13 tps=991.39 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=15169 itps=974.01 tps=985.74 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=20173 itps=1000.83 tps=989.44 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=25635 itps=1092.42 tps=1009.72 | SUB recv=0 itps=0.00 p99=0.00ms
+\n=== Summary (scale_20251120_222720_redis_p65536_n10000_r1) ===
+=== Summary ===
+Publisher: sent=25635 total_tps=1009.72
+Subscriber: recv=0 total_tps=0.00 p50=0.00ms p95=0.00ms p99=0.00ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_222720_redis_p65536_n10000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1481433)
+[22:28:16] Run: transport=nats pairs=10 payload=65536B per_pub_rate=1/s total_rate=10/s
+[run_multi_topic_perkey] scale_20251120_222816_nats_p65536_n10_r1 (ENGINE=nats)
+Dims: T=10 R=1 S=1 K=1 | subs=10 pubs=10 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --subscribers 10 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_222816_nats_p65536_n10_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_222816_nats_p65536_n10_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --publishers 10 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_222816_nats_p65536_n10_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_222816_nats_p65536_n10_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.20 tps=10.26 | SUB recv=41 itps=8.20 p99=3.15ms
+[status] PUB sent=101 itps=10.00 tps=10.13 | SUB recv=91 itps=10.00 p99=3.15ms
+[status] PUB sent=151 itps=10.00 tps=10.09 | SUB recv=141 itps=10.00 p99=3.06ms
+[status] PUB sent=201 itps=10.00 tps=10.06 | SUB recv=191 itps=10.00 p99=3.06ms
+[status] PUB sent=251 itps=10.00 tps=10.05 | SUB recv=241 itps=10.00 p99=3.06ms
+\n=== Summary (scale_20251120_222816_nats_p65536_n10_r1) ===
+=== Summary ===
+Publisher: sent=301 total_tps=10.04
+Subscriber: recv=291 total_tps=10.05 p50=1.63ms p95=2.09ms p99=3.06ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_222816_nats_p65536_n10_r1/fanout_multi_topic_perkey
+Stopping subscribers (1481897)
+[22:29:02] Run: transport=nats pairs=100 payload=65536B per_pub_rate=1/s total_rate=100/s
+[run_multi_topic_perkey] scale_20251120_222902_nats_p65536_n100_r1 (ENGINE=nats)
+Dims: T=100 R=1 S=1 K=1 | subs=100 pubs=100 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 100 --regions 1 --services 1 --shards 1 --subscribers 100 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_222902_nats_p65536_n100_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_222902_nats_p65536_n100_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 100 --regions 1 --services 1 --shards 1 --publishers 100 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_222902_nats_p65536_n100_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_222902_nats_p65536_n100_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=480 itps=96.00 tps=100.38 | SUB recv=379 itps=75.80 p99=2.35ms
+[status] PUB sent=980 itps=99.99 tps=100.19 | SUB recv=879 itps=100.00 p99=2.23ms
+[status] PUB sent=1480 itps=100.01 tps=100.13 | SUB recv=1379 itps=100.00 p99=2.30ms
+[status] PUB sent=1980 itps=100.01 tps=100.10 | SUB recv=1879 itps=99.99 p99=2.23ms
+[status] PUB sent=2480 itps=100.00 tps=100.08 | SUB recv=2379 itps=100.02 p99=2.25ms
+[status] PUB sent=2980 itps=99.99 tps=100.06 | SUB recv=2879 itps=99.99 p99=2.23ms
+\n=== Summary (scale_20251120_222902_nats_p65536_n100_r1) ===
+=== Summary ===
+Publisher: sent=2980 total_tps=100.06
+Subscriber: recv=2879 total_tps=100.06 p50=1.45ms p95=1.71ms p99=2.23ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_222902_nats_p65536_n100_r1/fanout_multi_topic_perkey
+Stopping subscribers (1482311)
+[22:29:53] Run: transport=nats pairs=300 payload=65536B per_pub_rate=1/s total_rate=300/s
+[run_multi_topic_perkey] scale_20251120_222953_nats_p65536_n300_r1 (ENGINE=nats)
+Dims: T=300 R=1 S=1 K=1 | subs=300 pubs=300 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 300 --regions 1 --services 1 --shards 1 --subscribers 300 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_222953_nats_p65536_n300_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_222953_nats_p65536_n300_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 300 --regions 1 --services 1 --shards 1 --publishers 300 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_222953_nats_p65536_n300_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_222953_nats_p65536_n300_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=1305 itps=260.99 tps=300.62 | SUB recv=1000 itps=200.03 p99=5.54ms
+[status] PUB sent=2806 itps=300.20 tps=300.39 | SUB recv=2500 itps=300.00 p99=4.61ms
+[status] PUB sent=4306 itps=300.00 tps=300.26 | SUB recv=4001 itps=300.20 p99=4.50ms
+[status] PUB sent=5805 itps=299.80 tps=300.14 | SUB recv=5500 itps=299.80 p99=4.28ms
+[status] PUB sent=7306 itps=300.20 tps=300.15 | SUB recv=7001 itps=300.21 p99=4.12ms
+[status] PUB sent=8805 itps=299.79 tps=300.09 | SUB recv=8503 itps=300.35 p99=4.05ms
+\n=== Summary (scale_20251120_222953_nats_p65536_n300_r1) ===
+=== Summary ===
+Publisher: sent=8805 total_tps=300.09
+Subscriber: recv=8503 total_tps=300.12 p50=2.15ms p95=2.60ms p99=4.05ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_222953_nats_p65536_n300_r1/fanout_multi_topic_perkey
+Stopping subscribers (1482735)
+[22:30:45] Run: transport=nats pairs=1000 payload=65536B per_pub_rate=1/s total_rate=1000/s
+[run_multi_topic_perkey] scale_20251120_223045_nats_p65536_n1000_r1 (ENGINE=nats)
+Dims: T=1000 R=1 S=1 K=1 | subs=1000 pubs=1000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 1000 --regions 1 --services 1 --shards 1 --subscribers 1000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_223045_nats_p65536_n1000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_223045_nats_p65536_n1000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 1000 --regions 1 --services 1 --shards 1 --publishers 1000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_223045_nats_p65536_n1000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_223045_nats_p65536_n1000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=2983 itps=596.61 tps=1000.57 | SUB recv=1976 itps=395.22 p99=4.62ms
+[status] PUB sent=7983 itps=1000.01 tps=1000.22 | SUB recv=6975 itps=999.81 p99=4.03ms
+[status] PUB sent=12983 itps=999.99 tps=1000.13 | SUB recv=11976 itps=1000.20 p99=4.06ms
+[status] PUB sent=17983 itps=1000.01 tps=1000.10 | SUB recv=16975 itps=999.79 p99=4.22ms
+[status] PUB sent=22983 itps=1000.06 tps=1000.09 | SUB recv=21975 itps=1000.01 p99=4.32ms
+[status] PUB sent=27983 itps=999.93 tps=1000.06 | SUB recv=26972 itps=999.40 p99=4.25ms
+\n=== Summary (scale_20251120_223045_nats_p65536_n1000_r1) ===
+=== Summary ===
+Publisher: sent=27983 total_tps=1000.06
+Subscriber: recv=26972 total_tps=1000.02 p50=1.80ms p95=2.81ms p99=4.25ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_223045_nats_p65536_n1000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1483159)
+[22:31:36] Run: transport=nats pairs=2000 payload=65536B per_pub_rate=1/s total_rate=2000/s
+[run_multi_topic_perkey] scale_20251120_223136_nats_p65536_n2000_r1 (ENGINE=nats)
+Dims: T=2000 R=1 S=1 K=1 | subs=2000 pubs=2000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 2000 --regions 1 --services 1 --shards 1 --subscribers 2000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_223136_nats_p65536_n2000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_223136_nats_p65536_n2000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 2000 --regions 1 --services 1 --shards 1 --publishers 2000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_223136_nats_p65536_n2000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_223136_nats_p65536_n2000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=1958 itps=391.60 tps=2006.04 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=11958 itps=2000.02 tps=2001.00 | SUB recv=9936 itps=1987.43 p99=4.69ms
+[status] PUB sent=21957 itps=1999.72 tps=2000.42 | SUB recv=19936 itps=2000.00 p99=3.59ms
+[status] PUB sent=31957 itps=2000.02 tps=2000.29 | SUB recv=29937 itps=2000.19 p99=3.39ms
+[status] PUB sent=41957 itps=2000.03 tps=2000.23 | SUB recv=39936 itps=1999.55 p99=3.18ms
+[status] PUB sent=51957 itps=2000.05 tps=2000.20 | SUB recv=49937 itps=2000.44 p99=3.09ms
+\n=== Summary (scale_20251120_223136_nats_p65536_n2000_r1) ===
+=== Summary ===
+Publisher: sent=51957 total_tps=2000.20
+Subscriber: recv=49937 total_tps=2000.15 p50=1.55ms p95=1.93ms p99=3.09ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_223136_nats_p65536_n2000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1483585)
+[22:32:27] Run: transport=nats pairs=3000 payload=65536B per_pub_rate=1/s total_rate=3000/s
+[run_multi_topic_perkey] scale_20251120_223227_nats_p65536_n3000_r1 (ENGINE=nats)
+Dims: T=3000 R=1 S=1 K=1 | subs=3000 pubs=3000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 3000 --regions 1 --services 1 --shards 1 --subscribers 3000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_223227_nats_p65536_n3000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_223227_nats_p65536_n3000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 3000 --regions 1 --services 1 --shards 1 --publishers 3000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_223227_nats_p65536_n3000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_223227_nats_p65536_n3000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=11580 itps=2316.04 tps=2982.05 | SUB recv=8533 itps=1706.93 p99=24.08ms
+[status] PUB sent=26546 itps=2993.38 tps=2988.43 | SUB recv=23458 itps=2985.00 p99=13.57ms
+[status] PUB sent=41568 itps=3004.14 tps=2994.09 | SUB recv=38516 itps=3011.60 p99=6.83ms
+[status] PUB sent=56553 itps=2997.24 tps=2994.92 | SUB recv=53581 itps=3013.01 p99=5.86ms
+[status] PUB sent=71487 itps=2986.50 tps=2993.16 | SUB recv=68516 itps=2985.89 p99=5.69ms
+[status] PUB sent=86555 itps=3013.44 tps=2996.67 | SUB recv=83516 itps=3001.10 p99=5.04ms
+\n=== Summary (scale_20251120_223227_nats_p65536_n3000_r1) ===
+=== Summary ===
+Publisher: sent=86555 total_tps=2996.67
+Subscriber: recv=83516 total_tps=2996.10 p50=1.50ms p95=1.97ms p99=5.04ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_223227_nats_p65536_n3000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1484135)
+[22:33:23] Run: transport=nats pairs=5000 payload=65536B per_pub_rate=1/s total_rate=5000/s
+[run_multi_topic_perkey] scale_20251120_223323_nats_p65536_n5000_r1 (ENGINE=nats)
+Dims: T=5000 R=1 S=1 K=1 | subs=5000 pubs=5000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 5000 --regions 1 --services 1 --shards 1 --subscribers 5000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_223323_nats_p65536_n5000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_223323_nats_p65536_n5000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 5000 --regions 1 --services 1 --shards 1 --publishers 5000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_223323_nats_p65536_n5000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_223323_nats_p65536_n5000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=8884 itps=1776.68 tps=3630.30 | SUB recv=5170 itps=1034.05 p99=177.21ms
+[status] PUB sent=28291 itps=3881.73 tps=3799.10 | SUB recv=24085 itps=3782.99 p99=137.63ms
+[status] PUB sent=50774 itps=4496.42 tps=4079.23 | SUB recv=46156 itps=4414.18 p99=93.65ms
+[status] PUB sent=70047 itps=3854.13 tps=4014.71 | SUB recv=65135 itps=3795.82 p99=61.96ms
+[status] PUB sent=90360 itps=4063.28 tps=4025.53 | SUB recv=86425 itps=4257.95 p99=44.11ms
+[status] PUB sent=109004 itps=3728.40 tps=3971.40 | SUB recv=105039 itps=3722.84 p99=33.16ms
+\n=== Summary (scale_20251120_223323_nats_p65536_n5000_r1) ===
+=== Summary ===
+Publisher: sent=109004 total_tps=3971.40
+Subscriber: recv=105039 total_tps=3973.24 p50=1.45ms p95=3.82ms p99=33.16ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_223323_nats_p65536_n5000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1484592)
+[22:34:24] Run: transport=nats pairs=7000 payload=65536B per_pub_rate=1/s total_rate=7000/s
+[run_multi_topic_perkey] scale_20251120_223424_nats_p65536_n7000_r1 (ENGINE=nats)
+Dims: T=7000 R=1 S=1 K=1 | subs=7000 pubs=7000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 7000 --regions 1 --services 1 --shards 1 --subscribers 7000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_223424_nats_p65536_n7000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_223424_nats_p65536_n7000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 7000 --regions 1 --services 1 --shards 1 --publishers 7000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_223424_nats_p65536_n7000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_223424_nats_p65536_n7000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=13199 itps=2639.29 tps=3483.06 | SUB recv=9519 itps=1903.84 p99=11.22ms
+[status] PUB sent=32219 itps=3804.31 tps=3665.80 | SUB recv=27949 itps=3686.01 p99=11.27ms
+[status] PUB sent=49848 itps=3523.98 tps=3614.36 | SUB recv=46419 itps=3694.00 p99=8.27ms
+[status] PUB sent=68377 itps=3707.60 tps=3639.16 | SUB recv=64591 itps=3634.30 p99=6.99ms
+[status] PUB sent=86401 itps=3605.07 tps=3631.99 | SUB recv=82744 itps=3630.70 p99=6.02ms
+[status] PUB sent=106677 itps=4055.36 tps=3705.52 | SUB recv=102327 itps=3916.53 p99=6.35ms
+\n=== Summary (scale_20251120_223424_nats_p65536_n7000_r1) ===
+=== Summary ===
+Publisher: sent=106677 total_tps=3705.52
+Subscriber: recv=102327 total_tps=3683.55 p50=1.44ms p95=2.31ms p99=6.35ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_223424_nats_p65536_n7000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1485045)
+[22:35:35] Run: transport=nats pairs=10000 payload=65536B per_pub_rate=1/s total_rate=10000/s
+[run_multi_topic_perkey] scale_20251120_223535_nats_p65536_n10000_r1 (ENGINE=nats)
+Dims: T=10000 R=1 S=1 K=1 | subs=10000 pubs=10000 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 10000 --regions 1 --services 1 --shards 1 --subscribers 10000 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_223535_nats_p65536_n10000_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_223535_nats_p65536_n10000_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine nats --connect host=192.168.0.254 --connect port=4222 --topic-prefix bench/pair --tenants 10000 --regions 1 --services 1 --shards 1 --publishers 10000 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_223535_nats_p65536_n10000_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_223535_nats_p65536_n10000_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+\n=== Summary (scale_20251120_223535_nats_p65536_n10000_r1) ===
+=== Summary ===
+Publisher: sent=0 total_tps=0.00
+Subscriber: recv=0 total_tps=0.00 p50=0.00ms p95=0.00ms p99=0.00ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_223535_nats_p65536_n10000_r1/fanout_multi_topic_perkey
+Stopping subscribers (1485951)
+[22:36:17] Run group: transport=mqtt (brokers=mosquitto:127.0.0.1:1883 emqx:127.0.0.1:1884 hivemq:127.0.0.1:1885 rabbitmq:127.0.0.1:1886 artemis:127.0.0.1:1887) pairs=10 payload=65536B per_pub_rate=1/s total_rate=10/s
+[run_multi_topic_perkey] scale_20251120_223617_mqtt_mosquitto_p65536_n10_r1 (ENGINE=mqtt)
+Dims: T=10 R=1 S=1 K=1 | subs=10 pubs=10 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine mqtt --connect host=192.168.0.254 --connect port=1883 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --subscribers 10 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_223617_mqtt_mosquitto_p65536_n10_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_223617_mqtt_mosquitto_p65536_n10_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine mqtt --connect host=192.168.0.254 --connect port=1883 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --publishers 10 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_223617_mqtt_mosquitto_p65536_n10_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_223617_mqtt_mosquitto_p65536_n10_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.00 tps=10.20 | SUB recv=41 itps=8.20 p99=6.64ms
+[status] PUB sent=101 itps=10.00 tps=10.10 | SUB recv=91 itps=10.00 p99=6.64ms
+[status] PUB sent=151 itps=10.00 tps=10.07 | SUB recv=141 itps=10.00 p99=4.65ms
+[status] PUB sent=201 itps=10.00 tps=10.05 | SUB recv=191 itps=10.00 p99=4.65ms
+[status] PUB sent=251 itps=10.00 tps=10.04 | SUB recv=241 itps=10.00 p99=3.74ms
+\n=== Summary (scale_20251120_223617_mqtt_mosquitto_p65536_n10_r1) ===
+=== Summary ===
+Publisher: sent=301 total_tps=10.03
+Subscriber: recv=291 total_tps=10.04 p50=1.74ms p95=2.04ms p99=3.74ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_223617_mqtt_mosquitto_p65536_n10_r1/fanout_multi_topic_perkey
+Stopping subscribers (1486374)
+[run_multi_topic_perkey] scale_20251120_223648_mqtt_emqx_p65536_n10_r1 (ENGINE=mqtt)
+Dims: T=10 R=1 S=1 K=1 | subs=10 pubs=10 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine mqtt --connect host=192.168.0.254 --connect port=1884 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --subscribers 10 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_223648_mqtt_emqx_p65536_n10_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_223648_mqtt_emqx_p65536_n10_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine mqtt --connect host=192.168.0.254 --connect port=1884 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --publishers 10 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_223648_mqtt_emqx_p65536_n10_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_223648_mqtt_emqx_p65536_n10_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.00 tps=10.20 | SUB recv=41 itps=8.20 p99=8.70ms
+[status] PUB sent=101 itps=10.00 tps=10.10 | SUB recv=91 itps=10.00 p99=8.70ms
+[status] PUB sent=151 itps=10.00 tps=10.07 | SUB recv=141 itps=10.00 p99=8.40ms
+[status] PUB sent=201 itps=10.00 tps=10.05 | SUB recv=191 itps=10.00 p99=8.40ms
+[status] PUB sent=251 itps=10.00 tps=10.04 | SUB recv=241 itps=10.00 p99=4.25ms
+\n=== Summary (scale_20251120_223648_mqtt_emqx_p65536_n10_r1) ===
+=== Summary ===
+Publisher: sent=301 total_tps=10.03
+Subscriber: recv=291 total_tps=10.04 p50=2.12ms p95=2.79ms p99=4.25ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_223648_mqtt_emqx_p65536_n10_r1/fanout_multi_topic_perkey
+Stopping subscribers (1486862)
+[run_multi_topic_perkey] scale_20251120_223719_mqtt_hivemq_p65536_n10_r1 (ENGINE=mqtt)
+Dims: T=10 R=1 S=1 K=1 | subs=10 pubs=10 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine mqtt --connect host=192.168.0.254 --connect port=1885 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --subscribers 10 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_223719_mqtt_hivemq_p65536_n10_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_223719_mqtt_hivemq_p65536_n10_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine mqtt --connect host=192.168.0.254 --connect port=1885 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --publishers 10 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_223719_mqtt_hivemq_p65536_n10_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_223719_mqtt_hivemq_p65536_n10_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.00 tps=10.20 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=101 itps=10.00 tps=10.10 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=151 itps=10.00 tps=10.07 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=201 itps=10.00 tps=10.05 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=251 itps=10.00 tps=10.04 | SUB recv=0 itps=0.00 p99=0.00ms
+\n=== Summary (scale_20251120_223719_mqtt_hivemq_p65536_n10_r1) ===
+=== Summary ===
+Publisher: sent=301 total_tps=10.03
+Subscriber: recv=0 total_tps=0.00 p50=0.00ms p95=0.00ms p99=0.00ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_223719_mqtt_hivemq_p65536_n10_r1/fanout_multi_topic_perkey
+Stopping subscribers (1487293)
+[run_multi_topic_perkey] scale_20251120_223750_mqtt_rabbitmq_p65536_n10_r1 (ENGINE=mqtt)
+Dims: T=10 R=1 S=1 K=1 | subs=10 pubs=10 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine mqtt --connect host=192.168.0.254 --connect port=1886 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --subscribers 10 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_223750_mqtt_rabbitmq_p65536_n10_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_223750_mqtt_rabbitmq_p65536_n10_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine mqtt --connect host=192.168.0.254 --connect port=1886 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --publishers 10 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_223750_mqtt_rabbitmq_p65536_n10_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_223750_mqtt_rabbitmq_p65536_n10_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.00 tps=10.20 | SUB recv=41 itps=8.20 p99=11.22ms
+[status] PUB sent=101 itps=10.00 tps=10.10 | SUB recv=91 itps=10.00 p99=11.22ms
+[status] PUB sent=151 itps=10.00 tps=10.07 | SUB recv=141 itps=10.00 p99=6.72ms
+[status] PUB sent=201 itps=10.00 tps=10.05 | SUB recv=191 itps=10.00 p99=6.72ms
+[status] PUB sent=251 itps=10.00 tps=10.04 | SUB recv=241 itps=10.00 p99=4.76ms
+\n=== Summary (scale_20251120_223750_mqtt_rabbitmq_p65536_n10_r1) ===
+=== Summary ===
+Publisher: sent=301 total_tps=10.03
+Subscriber: recv=291 total_tps=10.04 p50=1.87ms p95=2.93ms p99=4.76ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_223750_mqtt_rabbitmq_p65536_n10_r1/fanout_multi_topic_perkey
+Stopping subscribers (1487724)
+[run_multi_topic_perkey] scale_20251120_223821_mqtt_artemis_p65536_n10_r1 (ENGINE=mqtt)
+Dims: T=10 R=1 S=1 K=1 | subs=10 pubs=10 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine mqtt --connect host=192.168.0.254 --connect port=1887 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --subscribers 10 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_223821_mqtt_artemis_p65536_n10_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_223821_mqtt_artemis_p65536_n10_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine mqtt --connect host=192.168.0.254 --connect port=1887 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --publishers 10 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_223821_mqtt_artemis_p65536_n10_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_223821_mqtt_artemis_p65536_n10_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.00 tps=10.20 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.00 tps=10.20 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.00 tps=10.20 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.00 tps=10.20 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.00 tps=10.20 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.00 tps=10.20 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.00 tps=10.20 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.00 tps=10.20 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.00 tps=10.20 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.00 tps=10.20 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.00 tps=10.20 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=51 itps=10.00 tps=10.20 | SUB recv=0 itps=0.00 p99=0.00ms
+\n=== Summary (scale_20251120_223821_mqtt_artemis_p65536_n10_r1) ===
+=== Summary ===
+Publisher: sent=96 total_tps=1.58
+Subscriber: recv=0 total_tps=0.00 p50=0.00ms p95=0.00ms p99=0.00ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_223821_mqtt_artemis_p65536_n10_r1/fanout_multi_topic_perkey
+Stopping subscribers (1488135)
+[22:39:42] Run group: transport=mqtt (brokers=mosquitto:127.0.0.1:1883 emqx:127.0.0.1:1884 hivemq:127.0.0.1:1885 rabbitmq:127.0.0.1:1886 artemis:127.0.0.1:1887) pairs=100 payload=65536B per_pub_rate=1/s total_rate=100/s
+[run_multi_topic_perkey] scale_20251120_223942_mqtt_mosquitto_p65536_n100_r1 (ENGINE=mqtt)
+Dims: T=100 R=1 S=1 K=1 | subs=100 pubs=100 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine mqtt --connect host=192.168.0.254 --connect port=1883 --topic-prefix bench/pair --tenants 100 --regions 1 --services 1 --shards 1 --subscribers 100 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_223942_mqtt_mosquitto_p65536_n100_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_223942_mqtt_mosquitto_p65536_n100_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine mqtt --connect host=192.168.0.254 --connect port=1883 --topic-prefix bench/pair --tenants 100 --regions 1 --services 1 --shards 1 --publishers 100 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_223942_mqtt_mosquitto_p65536_n100_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_223942_mqtt_mosquitto_p65536_n100_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=501 itps=100.19 tps=100.20 | SUB recv=400 itps=80.00 p99=2.49ms
+[status] PUB sent=1001 itps=100.00 tps=100.10 | SUB recv=900 itps=100.00 p99=2.29ms
+[status] PUB sent=1501 itps=100.01 tps=100.07 | SUB recv=1400 itps=100.00 p99=2.29ms
+[status] PUB sent=2001 itps=99.99 tps=100.05 | SUB recv=1900 itps=100.01 p99=2.24ms
+[status] PUB sent=2501 itps=100.00 tps=100.04 | SUB recv=2400 itps=99.99 p99=2.24ms
+\n=== Summary (scale_20251120_223942_mqtt_mosquitto_p65536_n100_r1) ===
+=== Summary ===
+Publisher: sent=3001 total_tps=100.03
+Subscriber: recv=2900 total_tps=100.06 p50=1.68ms p95=1.90ms p99=2.24ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_223942_mqtt_mosquitto_p65536_n100_r1/fanout_multi_topic_perkey
+Stopping subscribers (1488635)
+[run_multi_topic_perkey] scale_20251120_224013_mqtt_emqx_p65536_n100_r1 (ENGINE=mqtt)
+Dims: T=100 R=1 S=1 K=1 | subs=100 pubs=100 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine mqtt --connect host=192.168.0.254 --connect port=1884 --topic-prefix bench/pair --tenants 100 --regions 1 --services 1 --shards 1 --subscribers 100 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_224013_mqtt_emqx_p65536_n100_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_224013_mqtt_emqx_p65536_n100_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine mqtt --connect host=192.168.0.254 --connect port=1884 --topic-prefix bench/pair --tenants 100 --regions 1 --services 1 --shards 1 --publishers 100 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_224013_mqtt_emqx_p65536_n100_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_224013_mqtt_emqx_p65536_n100_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=501 itps=100.22 tps=100.22 | SUB recv=401 itps=80.19 p99=6.64ms
+[status] PUB sent=1001 itps=99.99 tps=100.11 | SUB recv=901 itps=100.02 p99=3.67ms
+[status] PUB sent=1501 itps=100.00 tps=100.07 | SUB recv=1401 itps=100.00 p99=3.64ms
+[status] PUB sent=2001 itps=100.00 tps=100.05 | SUB recv=1901 itps=100.00 p99=3.65ms
+[status] PUB sent=2501 itps=100.00 tps=100.04 | SUB recv=2401 itps=99.99 p99=3.54ms
+\n=== Summary (scale_20251120_224013_mqtt_emqx_p65536_n100_r1) ===
+=== Summary ===
+Publisher: sent=3001 total_tps=100.03
+Subscriber: recv=2901 total_tps=100.10 p50=1.98ms p95=2.76ms p99=3.34ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_224013_mqtt_emqx_p65536_n100_r1/fanout_multi_topic_perkey
+Stopping subscribers (1489045)
+[run_multi_topic_perkey] scale_20251120_224044_mqtt_hivemq_p65536_n100_r1 (ENGINE=mqtt)
+Dims: T=100 R=1 S=1 K=1 | subs=100 pubs=100 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine mqtt --connect host=192.168.0.254 --connect port=1885 --topic-prefix bench/pair --tenants 100 --regions 1 --services 1 --shards 1 --subscribers 100 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_224044_mqtt_hivemq_p65536_n100_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_224044_mqtt_hivemq_p65536_n100_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine mqtt --connect host=192.168.0.254 --connect port=1885 --topic-prefix bench/pair --tenants 100 --regions 1 --services 1 --shards 1 --publishers 100 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_224044_mqtt_hivemq_p65536_n100_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_224044_mqtt_hivemq_p65536_n100_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=501 itps=100.20 tps=100.20 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=1001 itps=100.00 tps=100.10 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=1501 itps=100.00 tps=100.07 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=2001 itps=100.00 tps=100.05 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=2501 itps=100.00 tps=100.04 | SUB recv=0 itps=0.00 p99=0.00ms
+\n=== Summary (scale_20251120_224044_mqtt_hivemq_p65536_n100_r1) ===
+=== Summary ===
+Publisher: sent=3001 total_tps=100.03
+Subscriber: recv=0 total_tps=0.00 p50=0.00ms p95=0.00ms p99=0.00ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_224044_mqtt_hivemq_p65536_n100_r1/fanout_multi_topic_perkey
+Stopping subscribers (1489455)
+[run_multi_topic_perkey] scale_20251120_224116_mqtt_rabbitmq_p65536_n100_r1 (ENGINE=mqtt)
+Dims: T=100 R=1 S=1 K=1 | subs=100 pubs=100 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine mqtt --connect host=192.168.0.254 --connect port=1886 --topic-prefix bench/pair --tenants 100 --regions 1 --services 1 --shards 1 --subscribers 100 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_224116_mqtt_rabbitmq_p65536_n100_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_224116_mqtt_rabbitmq_p65536_n100_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine mqtt --connect host=192.168.0.254 --connect port=1886 --topic-prefix bench/pair --tenants 100 --regions 1 --services 1 --shards 1 --publishers 100 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_224116_mqtt_rabbitmq_p65536_n100_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_224116_mqtt_rabbitmq_p65536_n100_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=501 itps=100.20 tps=100.22 | SUB recv=400 itps=80.00 p99=6.00ms
+[status] PUB sent=1001 itps=99.98 tps=100.10 | SUB recv=900 itps=99.99 p99=3.42ms
+[status] PUB sent=1501 itps=100.00 tps=100.07 | SUB recv=1400 itps=100.00 p99=3.42ms
+[status] PUB sent=2001 itps=100.00 tps=100.05 | SUB recv=1900 itps=100.00 p99=3.39ms
+[status] PUB sent=2501 itps=100.01 tps=100.04 | SUB recv=2400 itps=100.01 p99=3.28ms
+\n=== Summary (scale_20251120_224116_mqtt_rabbitmq_p65536_n100_r1) ===
+=== Summary ===
+Publisher: sent=3001 total_tps=100.03
+Subscriber: recv=2900 total_tps=100.07 p50=1.78ms p95=2.53ms p99=3.21ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_224116_mqtt_rabbitmq_p65536_n100_r1/fanout_multi_topic_perkey
+Stopping subscribers (1489911)
+[run_multi_topic_perkey] scale_20251120_224147_mqtt_artemis_p65536_n100_r1 (ENGINE=mqtt)
+Dims: T=100 R=1 S=1 K=1 | subs=100 pubs=100 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine mqtt --connect host=192.168.0.254 --connect port=1887 --topic-prefix bench/pair --tenants 100 --regions 1 --services 1 --shards 1 --subscribers 100 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_224147_mqtt_artemis_p65536_n100_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_224147_mqtt_artemis_p65536_n100_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine mqtt --connect host=192.168.0.254 --connect port=1887 --topic-prefix bench/pair --tenants 100 --regions 1 --services 1 --shards 1 --publishers 100 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_224147_mqtt_artemis_p65536_n100_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_224147_mqtt_artemis_p65536_n100_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=0 itps=0.00 tps=0.00 | SUB recv=0 itps=0.00 p99=0.00ms
+\n=== Summary (scale_20251120_224147_mqtt_artemis_p65536_n100_r1) ===
+=== Summary ===
+Publisher: sent=473 total_tps=7.88
+Subscriber: recv=0 total_tps=0.00 p50=0.00ms p95=0.00ms p99=0.00ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_224147_mqtt_artemis_p65536_n100_r1/fanout_multi_topic_perkey
+Stopping subscribers (1490342)
+[22:43:03] Run group: transport=mqtt (brokers=mosquitto:127.0.0.1:1883 emqx:127.0.0.1:1884 hivemq:127.0.0.1:1885 rabbitmq:127.0.0.1:1886 artemis:127.0.0.1:1887) pairs=300 payload=65536B per_pub_rate=1/s total_rate=300/s
+[run_multi_topic_perkey] scale_20251120_224303_mqtt_mosquitto_p65536_n300_r1 (ENGINE=mqtt)
+Dims: T=300 R=1 S=1 K=1 | subs=300 pubs=300 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine mqtt --connect host=192.168.0.254 --connect port=1883 --topic-prefix bench/pair --tenants 300 --regions 1 --services 1 --shards 1 --subscribers 300 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_224303_mqtt_mosquitto_p65536_n300_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_224303_mqtt_mosquitto_p65536_n300_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine mqtt --connect host=192.168.0.254 --connect port=1883 --topic-prefix bench/pair --tenants 300 --regions 1 --services 1 --shards 1 --publishers 300 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_224303_mqtt_mosquitto_p65536_n300_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_224303_mqtt_mosquitto_p65536_n300_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=1501 itps=300.19 tps=300.32 | SUB recv=1198 itps=239.60 p99=24.15ms
+[status] PUB sent=3001 itps=300.02 tps=300.17 | SUB recv=2698 itps=299.96 p99=6.96ms
+[status] PUB sent=4501 itps=300.01 tps=300.12 | SUB recv=4198 itps=300.05 p99=3.97ms
+[status] PUB sent=6001 itps=299.98 tps=300.09 | SUB recv=5698 itps=299.96 p99=4.36ms
+[status] PUB sent=7501 itps=300.02 tps=300.07 | SUB recv=7198 itps=300.04 p99=4.29ms
+\n=== Summary (scale_20251120_224303_mqtt_mosquitto_p65536_n300_r1) ===
+=== Summary ===
+Publisher: sent=9001 total_tps=300.06
+Subscriber: recv=8698 total_tps=300.31 p50=2.35ms p95=3.45ms p99=4.28ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_224303_mqtt_mosquitto_p65536_n300_r1/fanout_multi_topic_perkey
+Stopping subscribers (1490811)
+[run_multi_topic_perkey] scale_20251120_224334_mqtt_emqx_p65536_n300_r1 (ENGINE=mqtt)
+Dims: T=300 R=1 S=1 K=1 | subs=300 pubs=300 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine mqtt --connect host=192.168.0.254 --connect port=1884 --topic-prefix bench/pair --tenants 300 --regions 1 --services 1 --shards 1 --subscribers 300 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_224334_mqtt_emqx_p65536_n300_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_224334_mqtt_emqx_p65536_n300_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine mqtt --connect host=192.168.0.254 --connect port=1884 --topic-prefix bench/pair --tenants 300 --regions 1 --services 1 --shards 1 --publishers 300 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_224334_mqtt_emqx_p65536_n300_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_224334_mqtt_emqx_p65536_n300_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=1501 itps=300.21 tps=300.31 | SUB recv=1198 itps=239.59 p99=31.95ms
+[status] PUB sent=3001 itps=300.04 tps=300.17 | SUB recv=2698 itps=299.99 p99=8.60ms
+[status] PUB sent=4501 itps=299.98 tps=300.11 | SUB recv=4198 itps=300.00 p99=6.96ms
+[status] PUB sent=6001 itps=299.98 tps=300.07 | SUB recv=5698 itps=300.00 p99=6.18ms
+[status] PUB sent=7501 itps=300.03 tps=300.07 | SUB recv=7198 itps=300.01 p99=6.00ms
+\n=== Summary (scale_20251120_224334_mqtt_emqx_p65536_n300_r1) ===
+=== Summary ===
+Publisher: sent=9001 total_tps=300.06
+Subscriber: recv=8698 total_tps=300.24 p50=3.22ms p95=4.41ms p99=5.71ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/scale_20251120_224334_mqtt_emqx_p65536_n300_r1/fanout_multi_topic_perkey
+Stopping subscribers (1491234)
+[run_multi_topic_perkey] scale_20251120_224405_mqtt_hivemq_p65536_n300_r1 (ENGINE=mqtt)
+Dims: T=300 R=1 S=1 K=1 | subs=300 pubs=300 mapping=mdim
+Load: payload=65536 rate_per_pub=1 dur=30s snapshot=5s share_transport=true
+Paths: sub=tcp/127.0.0.1:7447 pub=tcp/127.0.0.1:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine mqtt --connect host=192.168.0.254 --connect port=1885 --topic-prefix bench/pair --tenants 300 --regions 1 --services 1 --shards 1 --subscribers 300 --mapping mdim --duration 30 --share-transport --csv artifacts/scale_20251120_224405_mqtt_hivemq_p65536_n300_r1/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/scale_20251120_224405_mqtt_hivemq_p65536_n300_r1/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine mqtt --connect host=192.168.0.254 --connect port=1885 --topic-prefix bench/pair --tenants 300 --regions 1 --services 1 --shards 1 --publishers 300 --mapping mdim --payload 65536 --rate 1 --duration 30 --share-transport --csv artifacts/scale_20251120_224405_mqtt_hivemq_p65536_n300_r1/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/scale_20251120_224405_mqtt_hivemq_p65536_n300_r1/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=1501 itps=300.19 tps=300.34 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=3001 itps=300.01 tps=300.17 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=4501 itps=299.95 tps=300.10 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=6001 itps=300.04 tps=300.09 | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=7501 itps=300.01 tps=300.07 | SUB recv=0 itps=0.00 p99=0.00ms

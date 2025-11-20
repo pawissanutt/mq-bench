@@ -185,7 +185,12 @@ stop_broker_stats_monitor() {
 make_connect_args() {
 	local role="${1:?role sub|pub}"; shift
 	local -n _out="${1:?out array var name}"; shift || true
-	local engine="${ENGINE:-zenoh}"
+	# Allow per-role engine override via ENGINE_SUB / ENGINE_PUB, else fallback to ENGINE
+	local role_upper
+	role_upper=$(printf '%s' "${role}" | tr '[:lower:]' '[:upper:]')
+	local engine_var="ENGINE_${role_upper}"
+	local engine="${!engine_var-}"
+	if [[ -z "${engine}" ]]; then engine="${ENGINE:-zenoh}"; fi
 	_out=()
 	case "${engine}" in
 		zenoh)

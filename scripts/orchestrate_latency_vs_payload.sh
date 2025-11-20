@@ -46,11 +46,12 @@ TOTAL_RATE=1000         # msgs/s (system-wide)
 DURATION=30             # seconds
 SNAPSHOT=5
 RUN_ID_PREFIX="latency"
-TRANSPORTS=(zenoh redis nats rabbitmq mqtt)
+# Include zenoh-mqtt as a distinct label (internally uses zenoh engine)
+TRANSPORTS=(zenoh zenoh-mqtt redis nats rabbitmq mqtt)
 # Default payloads (bytes): 1KB, 256KB, 512KB, 768KB, 1024KB (1MB)
 PAYLOADS=(1024 262144 524288 786432 1048576)
 # Keep immutable copies for fallback if user passes empty strings to flags
-DEFAULT_TRANSPORTS=(zenoh redis nats rabbitmq mqtt)
+DEFAULT_TRANSPORTS=(zenoh zenoh-mqtt redis nats rabbitmq mqtt)
 DEFAULT_PAYLOADS=(1024 262144 524288 786432 1048576)
 START_SERVICES=0
 DRY_RUN=${DRY_RUN:-0}
@@ -356,6 +357,16 @@ run_combo() {
     zenoh)
       if [[ -n "${HOST}" ]]; then host_env="ENDPOINT_SUB=tcp/${HOST}:7447 ENDPOINT_PUB=tcp/${HOST}:7448"; fi
       run "ENGINE=zenoh ${host_env} ${env_common} bash \"${SCRIPT_DIR}/run_multi_topic_perkey.sh\" \"${rid}\""
+      ;;
+    zenoh-mqtt)
+      # Mixed engines via bridge: subscribers over MQTT on 1888 (bridge), publishers over zenoh on 7448
+      # This requires lib.sh to honor ENGINE_SUB/ENGINE_PUB per role (implemented).
+      if [[ -n "${HOST}" ]]; then
+        host_env="ENGINE_SUB=mqtt MQTT_HOST=${HOST} MQTT_PORT=1888 ENGINE_PUB=zenoh ENDPOINT_PUB=tcp/${HOST}:7448"
+      else
+        host_env="ENGINE_SUB=mqtt MQTT_HOST=127.0.0.1 MQTT_PORT=1888 ENGINE_PUB=zenoh ENDPOINT_PUB=tcp/127.0.0.1:7448"
+      fi
+      run "${host_env} ${env_common} bash \"${SCRIPT_DIR}/run_multi_topic_perkey.sh\" \"${rid}\""
       ;;
     redis)
       if [[ -n "${HOST}" ]]; then host_env="REDIS_URL=redis://${HOST}:6379"; fi

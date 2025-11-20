@@ -45,7 +45,7 @@ PAYLOADS=(1024 4096 16384)
 RATES=(5000 10000 50000 100000 200000 400000)
 DURATION=20
 SNAPSHOT=5
-TRANSPORTS=(zenoh zenoh-peer redis nats rabbitmq mqtt)
+TRANSPORTS=(zenoh zenoh-mqtt zenoh-peer redis nats rabbitmq mqtt)
 RUN_ID_PREFIX="bench"
 START_SERVICES=0
 PLOTS_ONLY=0
@@ -280,6 +280,21 @@ run_fanout_combo() {
       run "${cmd}"
       parse_and_append_summary "fanout-zenoh-s${subs}" "${payload}" "${rate}" "${rid}" "${art_dir}"
       ;;
+    zenoh-mqtt)
+      # Alias transport: use zenoh engine with same endpoints, distinct label
+      rid="${RUN_ID_PREFIX}_$(timestamp)_fanout_${transport}_s${subs}_p${payload}_r${rate}"
+      art_dir="${REPO_ROOT}/artifacts/${rid}/fanout_singlesite"
+      env_host=""
+      if [[ -n "${HOST}" ]]; then
+        local _epsub="${ENDPOINT_SUB:-tcp/${HOST}:7447}"
+        local _eppub="${ENDPOINT_PUB:-tcp/${HOST}:7447}"
+        env_host="ENDPOINT_SUB=${_epsub} ENDPOINT_PUB=${_eppub}"
+      fi
+      cmd="ENGINE=zenoh ${env_host} ${env_common} bash \"${SCRIPT_DIR}/run_fanout.sh\" \"${rid}\""
+      log "Running: fanout transport=zenoh-mqtt, subs=${subs}, payload=${payload}, rate=${rate} (run_id=${rid})"
+      run "${cmd}"
+      parse_and_append_summary "fanout-zenoh-mqtt-s${subs}" "${payload}" "${rate}" "${rid}" "${art_dir}"
+      ;;
     zenoh-peer)
       rid="${RUN_ID_PREFIX}_$(timestamp)_fanout_${transport}_s${subs}_p${payload}_r${rate}"
       art_dir="${REPO_ROOT}/artifacts/${rid}/fanout_singlesite"
@@ -348,6 +363,17 @@ run_one_combo() {
   env_common="PAYLOAD=${payload} RATE=${rate} DURATION=${DURATION} SNAPSHOT=${SNAPSHOT} KEY=bench/topic"
   case "${transport}" in
     zenoh)
+      rid="${RUN_ID_PREFIX}_$(timestamp)_${transport}_p${payload}_r${rate}"
+      env_host=""
+      if [[ -n "${HOST}" ]]; then
+        local _epsub="${ENDPOINT_SUB:-tcp/${HOST}:7447}"
+        local _eppub="${ENDPOINT_PUB:-tcp/${HOST}:7447}"
+        env_host="ENDPOINT_SUB=${_epsub} ENDPOINT_PUB=${_eppub}"
+      fi
+      cmd="ENGINE=zenoh ${env_host} ${env_common} bash \"${SCRIPT_DIR}/run_baseline.sh\" \"${rid}\""
+      art_dir="${REPO_ROOT}/artifacts/${rid}/local_baseline"
+      ;;
+    zenoh-mqtt)
       rid="${RUN_ID_PREFIX}_$(timestamp)_${transport}_p${payload}_r${rate}"
       env_host=""
       if [[ -n "${HOST}" ]]; then
