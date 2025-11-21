@@ -241,13 +241,40 @@ append_summary_from_artifacts() {
   if [[ -f "${stats_csv}" ]]; then
     local agg
     agg=$(awk -F, '
-      NR==1 { has_memprec=(NF>=12); has_cpuprec=(NF>=17); next }
+      NR==1 { 
+        # Detect format: remote collector (5 cols) vs local (many cols)
+        is_remote=(NF==5 && $3=="cpu_perc");
+        has_memprec=(NF>=12); has_cpuprec=(NF>=17); 
+        next 
+      }
       {
-        if (has_cpuprec) { c=$17+0 } else { c=$4; gsub(/%/,"",c); c+=0 }
-        if (c>mcpu) mcpu=c
-        if (has_memprec) {
-          used_b=$10+0; tot_b=$11+0; if (used_b>mused) mused=used_b; perc=$12+0; if (perc==0 && tot_b>0) perc=(used_b/tot_b)*100.0; if (perc>mperc) mperc=perc
+        if (is_remote) {
+           # Remote format: timestamp,container,cpu_perc,mem_perc,mem_usage
+           c=$3; gsub(/%/,"",c); c+=0
+           perc=$4; gsub(/%/,"",perc); perc+=0
+           used_str=$5; 
+           # Parse mem usage like "12.5MiB / 1.2GiB" -> take first part
+           split(used_str, parts, " ");
+           used_part = parts[1];
+           
+           val=used_part+0; 
+           unit=used_part; gsub(/[0-9.]/,"",unit);
+           
+           if (index(unit,"Gi")>0) val*=1024*1024*1024;
+           else if (index(unit,"Mi")>0) val*=1024*1024;
+           else if (index(unit,"Ki")>0) val*=1024;
+           used_b=val
+        } else {
+           # Local format
+           if (has_cpuprec) { c=$17+0 } else { c=$4; gsub(/%/,"",c); c+=0 }
+           if (has_memprec) {
+             used_b=$10+0; tot_b=$11+0; if (used_b>mused) mused=used_b; perc=$12+0; if (perc==0 && tot_b>0) perc=(used_b/tot_b)*100.0; 
+           }
         }
+        
+        if (c>mcpu) mcpu=c
+        if (perc>mperc) mperc=perc
+        if (used_b>mused) mused=used_b
       }
       END{ if(mcpu=="")mcpu=0; if(mperc=="")mperc=0; if(mused=="")mused=0; printf("%.6f,%.6f,%.0f", mcpu,mperc,mused) }
     ' "${stats_csv}" || true)
@@ -266,6 +293,17 @@ run_combo() {
   if [[ -n "${per_pub_rate}" ]]; then env_common+=" RATE=${per_pub_rate}"; fi
 
   local host_env=""
+  local remote_stats_pid=""
+  local stats_csv="${art_dir}/docker_stats.csv"
+
+  # Start remote stats collector if HOST is set
+  if [[ -n "${HOST}" ]]; then
+    mkdir -p "${art_dir}"
+    log "Starting remote stats collector on ${HOST}..."
+    "${SCRIPT_DIR}/collect_remote_docker_stats.sh" "${HOST}" "${stats_csv}" "${DURATION}" >/dev/null 2>&1 &
+    remote_stats_pid=$!
+  fi
+
   case "${transport}" in
     zenoh)
       if [[ -n "${HOST}" ]]; then host_env="ENDPOINT_SUB=tcp/${HOST}:7447 ENDPOINT_PUB=tcp/${HOST}:7448"; fi
@@ -297,13 +335,23 @@ run_combo() {
           local br_rid="${RUN_ID_PREFIX}_$(timestamp)_${br_transport}_p${payload}_n${pairs}_r${per_pub_rate}"
           local br_art_dir="${REPO_ROOT}/artifacts/${br_rid}/fanout_multi_topic_perkey"
           host_env="MQTT_HOST=${bhost} MQTT_PORT=${bport}"
+          
+          # For MQTT multi-broker, we might need per-broker stats collection if they are on different hosts.
+          # Assuming single HOST for now or local. If HOST is set, we already started one collector above.
+          # If brokers are on different hosts, this simple logic won't cover all of them.
+          
           run "ENGINE=mqtt ${host_env} ${env_common} bash \"${SCRIPT_DIR}/run_multi_topic_perkey.sh\" \"${br_rid}\""
           append_summary_from_artifacts "${br_transport}" "${payload}" "${total_rate}" "${br_rid}" "${br_art_dir}"
         done
       fi
+      # Kill remote stats if started
+      if [[ -n "${remote_stats_pid}" ]]; then kill "${remote_stats_pid}" 2>/dev/null || true; wait "${remote_stats_pid}" 2>/dev/null || true; fi
       return 0 ;;
     *) log "Unknown transport: ${transport}"; return 1 ;;
   esac
+
+  # Kill remote stats if started
+  if [[ -n "${remote_stats_pid}" ]]; then kill "${remote_stats_pid}" 2>/dev/null || true; wait "${remote_stats_pid}" 2>/dev/null || true; fi
 
   append_summary_from_artifacts "${transport}" "${payload}" "${total_rate}" "${rid}" "${art_dir}"
 }
