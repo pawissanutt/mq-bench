@@ -104,6 +104,17 @@ sudo setup/kvm-create-delete.sh \
   -A
 ```
 
+To create another vm just update:
+```
+Guest IP = 192.168.0.251 → inside VM
+
+Host-side IP = 192.168.0.250 → special IP on host to reach VM
+```
+
+Set these values something within 254. -q or 192.168.0.251 is the IP which is used to ssh into the vm.
+
+To something else, also change the name and other configs;
+
 **What each flag does:**
 - `-n vm-oaas` — VM name (unique per host)
 - `-c 2` — 2 vCPUs
