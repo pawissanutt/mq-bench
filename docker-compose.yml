@@ -64,7 +64,7 @@ services:
     command: ["redis-server", "--save", "", "--appendonly", "no"]
 
   router1:
-    image: eclipse/zenoh-bridge-mqtt:1.6.1
+    image: eclipse/zenoh-bridge-mqtt:1.6.2
     container_name: router1
     command: ["-c", "/etc/zenoh/router1.json5"]
     ports:
@@ -74,8 +74,19 @@ services:
       - ./config/router1.json5:/etc/zenoh/router1.json5:ro
     environment:
       RUST_LOG: info
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
 
   router2:
+    deploy:
+      replicas: 0
     image: eclipse/zenoh-bridge-mqtt:1.6.1
     container_name: router2
     command: ["-c", "/etc/zenoh/router2.json5"]
@@ -88,6 +99,8 @@ services:
       RUST_LOG: info
 
   router3:
+    deploy:
+      replicas: 0
     image: eclipse/zenoh-bridge-mqtt:1.6.1
     container_name: router3
     command: ["-c", "/etc/zenoh/router3.json5"]

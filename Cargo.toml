@@ -34,7 +34,7 @@ transport-amqp-0-9 = ["dep:lapin",
 ]
 
 [dependencies.zenoh]
-version = "1.6.2"
+version = "=1.6.2"
 optional = true
 features = ["unstable"]
 [dependencies.redis]

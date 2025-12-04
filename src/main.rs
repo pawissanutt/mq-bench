@@ -143,6 +143,10 @@ enum Commands {
         #[arg(long, default_value = "false")]
         share_transport: bool,
 
+        /// Total ramp-up time in seconds to spread connection creation (default: 0 = no delay)
+        #[arg(long, default_value = "0")]
+        ramp_up_secs: f64,
+
         /// Optional CSV output file path (stdout if omitted)
         #[arg(long)]
         csv: Option<String>,
@@ -191,6 +195,10 @@ enum Commands {
         /// Share a single transport across all subscribers (default: false)
         #[arg(long, default_value = "false")]
         share_transport: bool,
+
+        /// Total ramp-up time in seconds to spread connection creation (default: 0 = no delay)
+        #[arg(long, default_value = "0")]
+        ramp_up_secs: f64,
 
         /// Optional CSV output file path (stdout if omitted)
         #[arg(long)]
@@ -429,6 +437,7 @@ async fn main() -> Result<()> {
             rate,
             duration,
             share_transport,
+            ramp_up_secs,
             csv,
         } => {
             let engine = parse_engine(&engine).unwrap_or(Engine::Zenoh);
@@ -487,6 +496,7 @@ async fn main() -> Result<()> {
                 duration_secs: duration as u64,
                 snapshot_interval_secs,
                 share_transport,
+                ramp_up_secs,
                 shared_stats: shared_stats.clone(),
                 disable_internal_snapshot: true,
             };
@@ -515,6 +525,7 @@ async fn main() -> Result<()> {
             mapping,
             duration,
             share_transport,
+            ramp_up_secs,
             csv,
         } => {
             let engine = parse_engine(&engine).unwrap_or(Engine::Zenoh);
@@ -568,6 +579,7 @@ async fn main() -> Result<()> {
                 duration_secs: duration as u64,
                 snapshot_interval_secs,
                 share_transport,
+                ramp_up_secs,
                 shared_stats: shared_stats.clone(),
                 disable_internal_snapshot: true,
             };

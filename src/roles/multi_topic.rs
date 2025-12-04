@@ -36,6 +36,7 @@ pub struct MultiTopicConfig {
     pub duration_secs: u64,
     pub snapshot_interval_secs: u64,
     pub share_transport: bool, // when true, reuse one transport for all publishers
+    pub ramp_up_secs: f64, // total ramp-up time in seconds (0 = no delay)
     // Aggregation support
     pub shared_stats: Option<Arc<Stats>>, // when set, aggregate externally
     pub disable_internal_snapshot: bool,
@@ -210,8 +211,19 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
         );
         return Ok(());
     } else {
-        println!("[multi_topic] using per-key transports");
+        // Calculate per-connection delay from total ramp-up time
+        let ramp_delay_us = if config.ramp_up_secs > 0.0 && pubs > 1 {
+            ((config.ramp_up_secs * 1_000_000.0) / (pubs - 1) as f64) as u64
+        } else {
+            0
+        };
+        println!("[multi_topic] using per-key transports (ramp_up={}s, delay_per_conn={}us)", 
+            config.ramp_up_secs, ramp_delay_us);
         for i in 0..pubs {
+            // Apply ramp-up delay between connections (skip first)
+            if i > 0 && ramp_delay_us > 0 {
+                tokio::time::sleep(Duration::from_micros(ramp_delay_us)).await;
+            }
             let (t, r, s, k) = map_index(
                 i,
                 config.tenants,
@@ -304,6 +316,7 @@ pub struct MultiTopicSubConfig {
     pub duration_secs: u64,
     pub snapshot_interval_secs: u64,
     pub share_transport: bool, // when true, reuse one transport for all subscriptions
+    pub ramp_up_secs: f64, // total ramp-up time in seconds (0 = no delay)
     // Aggregation support
     pub shared_stats: Option<Arc<Stats>>, // when set, aggregate externally
     pub disable_internal_snapshot: bool,
@@ -457,11 +470,22 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
     }
 
     // Per-subscription transports
-    println!("[multi_topic_sub] using per-key transports");
+    // Calculate per-connection delay from total ramp-up time
+    let ramp_delay_us = if config.ramp_up_secs > 0.0 && subs > 1 {
+        ((config.ramp_up_secs * 1_000_000.0) / (subs - 1) as f64) as u64
+    } else {
+        0
+    };
+    println!("[multi_topic_sub] using per-key transports (ramp_up={}s, delay_per_conn={}us)", 
+        config.ramp_up_secs, ramp_delay_us);
     // Hold both the subscription and its own transport to keep the client alive
     let mut clients: Vec<(Box<dyn crate::transport::Subscription>, Box<dyn Transport>)> =
         Vec::with_capacity(subs as usize);
     for i in 0..subs {
+        // Apply ramp-up delay between connections (skip first)
+        if i > 0 && ramp_delay_us > 0 {
+            tokio::time::sleep(Duration::from_micros(ramp_delay_us)).await;
+        }
         let (t, r, s, k) = map_index(
             i,
             config.tenants,
