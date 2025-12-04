@@ -36,7 +36,7 @@ PAYLOAD_TOKEN="1MB"           # accepts KB/MB suffix; converted to bytes
 RATE_PER_PUB="1"              # msgs/s per publisher (if set)
 TOTAL_RATE=""                 # alternative: fixed total offered rate (msgs/s)
 DURATION=30
-SNAPSHOT=5
+SNAPSHOT=1
 RUN_ID_PREFIX="scale"
 TRANSPORTS=(zenoh zenoh-mqtt redis nats rabbitmq mqtt)
 DEFAULT_TRANSPORTS=(zenoh zenoh-mqtt redis nats rabbitmq mqtt)
@@ -46,9 +46,23 @@ HOST="${HOST:-}"
 SUMMARY_OVERRIDE="${SUMMARY_OVERRIDE:-}"
 INTERVAL_SEC=15
 
+# Sequential / Remote execution
+SEQUENTIAL=0
+SSH_TARGET=""
+REMOTE_DIR="~/mq-bench"
+
 # MQTT brokers (name:host:port). Default to local compose ports.
 MQTT_BROKERS="mosquitto:127.0.0.1:1883 emqx:127.0.0.1:1884 hivemq:127.0.0.1:1885 rabbitmq:127.0.0.1:1886 artemis:127.0.0.1:1887"
 declare -a MQTT_BROKERS_ARR=()
+
+# Helper to clean smart quotes from a string
+clean_quotes() {
+  local v="$1"
+  # Remove leading/trailing smart quotes or normal quotes
+  v="${v#[\"\'“”‘’]}"
+  v="${v%[\"\'“”‘’]}"
+  echo "$v"
+}
 
 # Convert tokens with KB/MB suffix to bytes
 to_bytes() {
@@ -136,9 +150,19 @@ while [[ $# -gt 0 ]]; do
     --bench-dir)
       shift; BENCH_DIR=${1:-}; if is_quote_only_token "${BENCH_DIR}"; then BENCH_DIR=""; fi ;;
     --mqtt-brokers)
-      shift; MQTT_BROKERS=${1:-} ;;
+      shift; 
+      _raw_brokers="${1:-}"
+      _raw_brokers=$(clean_quotes "${_raw_brokers}")
+      MQTT_BROKERS="${_raw_brokers}" 
+      ;;
     --interval-sec)
       shift; INTERVAL_SEC=${1:-0} ;;
+    --sequential)
+      SEQUENTIAL=1 ;;
+    --ssh-target)
+      shift; SSH_TARGET=${1:-} ;;
+    --remote-dir)
+      shift; REMOTE_DIR=${1:-} ;;
     -h|--help)
       usage; exit 0 ;;
     *)
@@ -170,8 +194,44 @@ fi
 # Guardrails
 if [[ ${#TRANSPORTS[@]} -eq 0 ]]; then TRANSPORTS=("${DEFAULT_TRANSPORTS[@]}"); fi
 
+# Infer HOST from SSH_TARGET if not set
+if [[ -z "${HOST}" ]] && [[ -n "${SSH_TARGET}" ]]; then
+  # Extract host part from user@host or just host
+  if [[ "${SSH_TARGET}" == *"@"* ]]; then
+    HOST="${SSH_TARGET#*@}"
+  else
+    HOST="${SSH_TARGET}"
+  fi
+  log "Inferred HOST=${HOST} from SSH_TARGET"
+fi
+
 # Materialize MQTT brokers array and apply HOST rewrite if needed
 IFS=' ' read -r -a MQTT_BROKERS_ARR <<<"${MQTT_BROKERS}"
+
+# If user provided only names (no host:port), try to resolve from defaults
+declare -a _RESOLVED_BROKERS=()
+for tok in "${MQTT_BROKERS_ARR[@]}"; do
+  if [[ "${tok}" != *:* ]]; then
+    # Look up in DEFAULT_MQTT_BROKERS
+    found=""
+    for def in ${DEFAULT_MQTT_BROKERS}; do
+      IFS=: read -r dname dhost dport <<<"${def}"
+      if [[ "${dname}" == "${tok}" ]]; then
+        found="${def}"
+        break
+      fi
+    done
+    if [[ -n "${found}" ]]; then
+      _RESOLVED_BROKERS+=("${found}")
+    else
+      log "WARN: Broker '${tok}' has no host:port and not found in defaults. Skipping."
+    fi
+  else
+    _RESOLVED_BROKERS+=("${tok}")
+  fi
+done
+MQTT_BROKERS_ARR=("${_RESOLVED_BROKERS[@]}")
+
 if [[ -n "${HOST}" ]]; then
   declare -a _REWRITTEN=()
   for tok in "${MQTT_BROKERS_ARR[@]}"; do IFS=: read -r bname _bhost bport <<<"${tok}"; _REWRITTEN+=("${bname}:${HOST}:${bport}"); done
@@ -196,33 +256,24 @@ append_summary_from_artifacts() {
   last_pub=$(tail -n +2 "${pub_csv}" 2>/dev/null | tail -n1 || true)
   if [[ -z "${last_sub}" ]]; then log "WARN: No subscriber data for ${run_id}"; return 0; fi
   
-  # Calculate average instantaneous throughput from the 3 middle rows to capture steady state
-  # Columns: timestamp,sent,recv,err,total_tps,interval_tps,...
-  # We want column 6 (interval_tps)
-  local avg_tps
-  avg_tps=$(awk -F, '
-    NR>1 && NF>=6 { # Skip header and ensure enough columns
-        rows[count++] = $6 
+  # Calculate max instantaneous throughput (column 6) to avoid warmup zeros and tail drops
+  local max_tps
+  max_tps=$(awk -F, '
+    NR>1 && NF>=6 { 
+        val = $6 + 0
+        if (val > max) max = val
     }
     END {
-        if (count == 0) { print "0.00"; exit }
-        if (count <= 3) {
-            for (i=0; i<count; i++) sum += rows[i]
-            printf "%.2f", sum/count
-        } else {
-            # Pick 3 rows from the middle
-            start = int((count - 3) / 2)
-            for (i=start; i<start+3; i++) sum += rows[i]
-            printf "%.2f", sum/3
-        }
+        if (max == "") max = 0
+        printf "%.2f", max
     }
   ' "${sub_csv}")
 
   local _ts _sent recv _err tps _it p50 p95 p99 _min _max _mean
   IFS=, read -r _ts _sent recv _err tps _it p50 p95 p99 _min _max _mean <<<"${last_sub}"
   
-  # Use the averaged instantaneous TPS instead of the final cumulative TPS
-  tps="${avg_tps}"
+  # Use the max instantaneous TPS instead of the final cumulative TPS
+  tps="${max_tps}"
 
   local pub_tps sent; pub_tps=""; sent="${_sent}"
   if [[ -n "${last_pub}" ]]; then
@@ -284,9 +335,103 @@ append_summary_from_artifacts() {
   echo "${transport},${payload},${total_rate},${run_id},${tps},${p50_ms},${p95_ms},${p99_ms},${pub_tps},${sent},${recv},${_err},${art_dir},${max_cpu},${max_mem_perc},${max_mem_used}" >> "${SUMMARY_CSV}"
 }
 
-run_combo() {
+# Map transport/broker to docker-compose service names
+get_services() {
+  case "$1" in
+    zenoh) echo "router1 router2" ;;
+    zenoh-mqtt) echo "router1 router2" ;;
+    redis) echo "redis" ;;
+    nats) echo "nats" ;;
+    rabbitmq) echo "rabbitmq" ;;
+    mosquitto) echo "mosquitto" ;;
+    emqx) echo "emqx" ;;
+    hivemq) echo "hivemq" ;;
+    artemis) echo "artemis" ;;
+    *) echo "" ;;
+  esac
+}
+
+# Run docker compose command (local or remote)
+docker_compose_cmd() {
+  local action="$1"
+  local services="${2:-}"
+  local cmd="docker compose ${action}"
+  if [[ -n "$services" ]]; then cmd="$cmd $services"; fi
+  
+  if [[ -n "$SSH_TARGET" ]]; then
+    # Remote execution
+    local rcmd="cd ${REMOTE_DIR} && ${cmd}"
+    log "[remote] ${SSH_TARGET}: ${rcmd}"
+    if [[ "${DRY_RUN}" = 1 ]]; then
+      echo "+ ssh ${SSH_TARGET} \"${rcmd}\""
+    else
+      ssh -o BatchMode=yes "${SSH_TARGET}" "${rcmd}"
+    fi
+  else
+    # Local execution
+    log "[local] ${cmd}"
+    run "${cmd}"
+  fi
+}
+
+# Manage service lifecycle if sequential mode is enabled
+wait_for_port() {
+  local host="$1"
+  local port="$2"
+  local timeout="${3:-60}"
+  log "Waiting for ${host}:${port}..."
+  local start_ts=$(date +%s)
+  while true; do
+    if timeout 1 bash -c "cat < /dev/null > /dev/tcp/${host}/${port}" 2>/dev/null; then
+       log "Port ${host}:${port} is open."
+       return 0
+    fi
+    local now_ts=$(date +%s)
+    if (( now_ts - start_ts > timeout )); then
+      log "Timeout waiting for ${host}:${port}"
+      return 1
+    fi
+    sleep 1
+  done
+}
+
+manage_service() {
+  local action="$1" # up or down
+  local services="$2"
+  if [[ $SEQUENTIAL -eq 0 ]]; then return 0; fi
+  if [[ -z "$services" ]]; then return 0; fi
+  
+  if [[ "$action" == "up" ]]; then
+    log "Starting services: ${services}"
+    # Ensure clean state first
+    docker_compose_cmd down
+    docker_compose_cmd "up -d" "$services"
+  elif [[ "$action" == "down" ]]; then
+    log "Stopping services: ${services}"
+    docker_compose_cmd down
+  fi
+}
+
+get_standard_port() {
+  case "$1" in
+    zenoh|zenoh-mqtt) echo "7447" ;;
+    redis) echo "6379" ;;
+    nats) echo "4222" ;;
+    rabbitmq) echo "5672" ;;
+    *) echo "" ;;
+  esac
+}
+
+run_single_execution() {
   local transport="$1" pairs="$2" payload="$3" per_pub_rate="$4" total_rate="$5"
-  local rid="${RUN_ID_PREFIX}_$(timestamp)_${transport}_p${payload}_n${pairs}_r${per_pub_rate}"
+  local broker_name="${6:-}" broker_host="${7:-}" broker_port="${8:-}"
+
+  local rid_suffix="${transport}_p${payload}_n${pairs}_r${per_pub_rate}"
+  if [[ -n "${broker_name}" ]]; then
+    rid_suffix="${broker_name}_p${payload}_n${pairs}_r${per_pub_rate}"
+  fi
+
+  local rid="${RUN_ID_PREFIX}_$(timestamp)_${rid_suffix}"
   local art_dir="${REPO_ROOT}/artifacts/${rid}/fanout_multi_topic_perkey"
   local env_common
   env_common="TENANTS=${pairs} REGIONS=1 SERVICES=1 SHARDS=1 SUBSCRIBERS=${pairs} PUBLISHERS=${pairs} PAYLOAD=${payload} DURATION=${DURATION} SNAPSHOT=${SNAPSHOT} TOPIC_PREFIX=bench/pair"
@@ -326,24 +471,20 @@ run_combo() {
       if [[ -n "${HOST}" ]]; then host_env="RABBITMQ_HOST=${HOST}"; fi
       run "ENGINE=rabbitmq ${host_env} ${env_common} bash \"${SCRIPT_DIR}/run_multi_topic_perkey.sh\" \"${rid}\"" ;;
     mqtt)
-      if [[ ${#MQTT_BROKERS_ARR[@]} -eq 0 ]]; then
-        log "WARN: No MQTT brokers defined; skipping"
-      else
-        for b in "${MQTT_BROKERS_ARR[@]}"; do
-          IFS=: read -r bname bhost bport <<<"${b}"
-          local br_transport="mqtt_${bname}"
-          local br_rid="${RUN_ID_PREFIX}_$(timestamp)_${br_transport}_p${payload}_n${pairs}_r${per_pub_rate}"
-          local br_art_dir="${REPO_ROOT}/artifacts/${br_rid}/fanout_multi_topic_perkey"
-          host_env="MQTT_HOST=${bhost} MQTT_PORT=${bport}"
-          
-          # For MQTT multi-broker, we might need per-broker stats collection if they are on different hosts.
-          # Assuming single HOST for now or local. If HOST is set, we already started one collector above.
-          # If brokers are on different hosts, this simple logic won't cover all of them.
-          
-          run "ENGINE=mqtt ${host_env} ${env_common} bash \"${SCRIPT_DIR}/run_multi_topic_perkey.sh\" \"${br_rid}\""
-          append_summary_from_artifacts "${br_transport}" "${payload}" "${total_rate}" "${br_rid}" "${br_art_dir}"
-        done
+      if [[ -z "${broker_name}" ]]; then
+        log "ERROR: MQTT transport requires broker details"; return 1
       fi
+      local br_transport="mqtt_${broker_name}"
+      host_env="MQTT_HOST=${broker_host} MQTT_PORT=${broker_port}"
+      
+      # Inject credentials for Artemis
+      if [[ "${broker_name}" == "artemis" ]]; then
+        host_env="${host_env} MQTT_USERNAME=admin MQTT_PASSWORD=admin"
+      fi
+
+      run "ENGINE=mqtt ${host_env} ${env_common} bash \"${SCRIPT_DIR}/run_multi_topic_perkey.sh\" \"${rid}\""
+      append_summary_from_artifacts "${br_transport}" "${payload}" "${total_rate}" "${rid}" "${art_dir}"
+      
       # Kill remote stats if started
       if [[ -n "${remote_stats_pid}" ]]; then kill "${remote_stats_pid}" 2>/dev/null || true; wait "${remote_stats_pid}" 2>/dev/null || true; fi
       return 0 ;;
@@ -359,7 +500,28 @@ run_combo() {
 main() {
   init_dirs
   log "Throughput vs pairs benchmark → ${BENCH_DIR}"
-  ensure_services
+  
+  # Attempt to increase ulimit automatically
+  local ulim
+  ulim=$(ulimit -n)
+  if [[ "$ulim" != "unlimited" ]] && (( ulim < 1048576 )); then
+    log "Current ulimit -n is ${ulim}. Attempting to raise to 1048576..."
+    if ulimit -n 1048576 2>/dev/null; then
+      log "Success: ulimit -n is now $(ulimit -n)"
+    else
+      log "WARN: Failed to raise ulimit to 1048576. Trying 65536..."
+      if ulimit -n 65536 2>/dev/null; then
+        log "Success: ulimit -n is now $(ulimit -n)"
+      else
+        log "WARN: Failed to raise ulimit. Hard limit might be too low. Try 'ulimit -Hn' to check."
+      fi
+    fi
+  fi
+
+  # If NOT sequential, ensure services are up globally (legacy mode)
+  if [[ $SEQUENTIAL -eq 0 ]]; then
+    ensure_services
+  fi
 
   # Resolve per-run parameters
   local payload_bytes="${PAYLOAD_BYTES}"
@@ -368,25 +530,88 @@ main() {
   log "Pairs list: ${PAIRS_LIST[*]} | rate-per-pub=${RATE_PER_PUB:-} | total-rate=${TOTAL_RATE:-}"
 
   for t in "${TRANSPORTS[@]}"; do
-    for n in "${PAIRS_LIST[@]}"; do
-      local per_rate total
-      if [[ -n "${RATE_PER_PUB}" ]]; then
-        per_rate="${RATE_PER_PUB}"; total=$(( n * per_rate ))
-      elif [[ -n "${TOTAL_RATE}" ]]; then
-        total="${TOTAL_RATE}"; per_rate=$(( total / n ))
+    if [[ "${t}" == "mqtt" ]]; then
+      # MQTT: Iterate brokers
+      if [[ ${#MQTT_BROKERS_ARR[@]} -eq 0 ]]; then
+        log "WARN: No MQTT brokers defined; skipping"
       else
-        per_rate=1; total=$(( n * per_rate ))
+        for b in "${MQTT_BROKERS_ARR[@]}"; do
+          IFS=: read -r bname bhost bport <<<"${b}"
+          
+          # Start service if sequential
+          if [[ $SEQUENTIAL -eq 1 ]]; then
+             local svc
+             svc=$(get_services "$bname")
+             manage_service up "$svc"
+             wait_for_port "${bhost}" "${bport}"
+          fi
+
+          for n in "${PAIRS_LIST[@]}"; do
+            local per_rate total
+            if [[ -n "${RATE_PER_PUB}" ]]; then
+              per_rate="${RATE_PER_PUB}"; total=$(( n * per_rate ))
+            elif [[ -n "${TOTAL_RATE}" ]]; then
+              total="${TOTAL_RATE}"; per_rate=$(( total / n ))
+            else
+              per_rate=1; total=$(( n * per_rate ))
+            fi
+            
+            log "Run: transport=mqtt broker=${bname} pairs=${n} payload=${payload_bytes}B per_pub_rate=${per_rate}/s total_rate=${total}/s"
+            run_single_execution "mqtt" "${n}" "${payload_bytes}" "${per_rate}" "${total}" "${bname}" "${bhost}" "${bport}"
+            
+            if [[ ${INTERVAL_SEC} -gt 0 ]]; then
+              if [[ ${DRY_RUN} -eq 1 ]]; then echo "+ sleep ${INTERVAL_SEC}"; else sleep ${INTERVAL_SEC}; fi
+            fi
+          done
+          
+          # Stop service if sequential
+          if [[ $SEQUENTIAL -eq 1 ]]; then
+             local svc
+             svc=$(get_services "$bname")
+             manage_service down "$svc"
+          fi
+        done
       fi
-      if [[ "${t}" == "mqtt" ]]; then
-        log "Run group: transport=mqtt (brokers=${MQTT_BROKERS}) pairs=${n} payload=${payload_bytes}B per_pub_rate=${per_rate}/s total_rate=${total}/s"
-      else
+    else
+      # Non-MQTT transports
+      
+      # Start service if sequential
+      if [[ $SEQUENTIAL -eq 1 ]]; then
+         local svc
+         svc=$(get_services "$t")
+         manage_service up "$svc"
+         local port
+         port=$(get_standard_port "$t")
+         if [[ -n "$port" ]]; then
+            wait_for_port "${HOST:-127.0.0.1}" "$port"
+         fi
+      fi
+
+      for n in "${PAIRS_LIST[@]}"; do
+        local per_rate total
+        if [[ -n "${RATE_PER_PUB}" ]]; then
+          per_rate="${RATE_PER_PUB}"; total=$(( n * per_rate ))
+        elif [[ -n "${TOTAL_RATE}" ]]; then
+          total="${TOTAL_RATE}"; per_rate=$(( total / n ))
+        else
+          per_rate=1; total=$(( n * per_rate ))
+        fi
+        
         log "Run: transport=${t} pairs=${n} payload=${payload_bytes}B per_pub_rate=${per_rate}/s total_rate=${total}/s"
+        run_single_execution "${t}" "${n}" "${payload_bytes}" "${per_rate}" "${total}"
+        
+        if [[ ${INTERVAL_SEC} -gt 0 ]]; then
+          if [[ ${DRY_RUN} -eq 1 ]]; then echo "+ sleep ${INTERVAL_SEC}"; else sleep ${INTERVAL_SEC}; fi
+        fi
+      done
+      
+      # Stop service if sequential
+      if [[ $SEQUENTIAL -eq 1 ]]; then
+         local svc
+         svc=$(get_services "$t")
+         manage_service down "$svc"
       fi
-      run_combo "${t}" "${n}" "${payload_bytes}" "${per_rate}" "${total}"
-      if [[ ${INTERVAL_SEC} -gt 0 ]]; then
-        if [[ ${DRY_RUN} -eq 1 ]]; then echo "+ sleep ${INTERVAL_SEC}"; else sleep ${INTERVAL_SEC}; fi
-      fi
-    done
+    fi
   done
 
   log "Plotting results to ${PLOTS_DIR}"

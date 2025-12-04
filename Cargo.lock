@@ -1936,6 +1936,7 @@ dependencies = [
  "futures",
  "hdrhistogram",
  "lapin",
+ "once_cell",
  "redis",
  "rumqttc",
  "serde",

@@ -169,55 +169,72 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
         }
 
         if let Some(rate) = config.rate_per_pub {
-            // Single driver task for all publishers
+            // Sharded driver tasks for publishers to allow concurrency
             // Total target rate = rate * pubs
             let total_rate = rate * (pubs as f64);
-            println!("[multi_topic] optimizing: single driver task for {} pubs @ total {:.2} msg/s", pubs, total_rate);
+            // Use a reasonable number of shards (e.g. 32) to allow concurrency without spawning per-pub tasks
+            let num_shards = 32.min(pubs as usize).max(1);
+            let rate_per_shard = total_rate / (num_shards as f64);
             
-            let stats_p = stats.clone();
-            let payload_size = config.payload_size;
-            let stop_flag = stop.clone();
+            println!("[multi_topic] optimizing: {} driver tasks for {} pubs @ total {:.2} msg/s ({:.2}/shard)", 
+                num_shards, pubs, total_rate, rate_per_shard);
             
-            handles.push(tokio::spawn(async move {
-                let mut rc = RateController::new(total_rate);
-                let mut seq = 0u64;
-                let mut pub_idx = 0;
-                let num_pubs = pub_handles.len();
-                
-                loop {
-                    if stop_flag.load(Ordering::Relaxed) {
-                        break;
+            // Distribute pub_handles into shards
+            let mut pub_iter = pub_handles.into_iter();
+            let chunk_size = (pubs as usize + num_shards - 1) / num_shards;
+
+            for _ in 0..num_shards {
+                let mut shard_pubs = Vec::with_capacity(chunk_size);
+                for _ in 0..chunk_size {
+                    if let Some(p) = pub_iter.next() {
+                        shard_pubs.push(p);
                     }
-                    rc.wait_for_next().await;
+                }
+                if shard_pubs.is_empty() { break; }
+                
+                let stats_p = stats.clone();
+                let payload_size = config.payload_size;
+                let stop_flag = stop.clone();
+                
+                handles.push(tokio::spawn(async move {
+                    let mut rc = RateController::new(rate_per_shard);
+                    let mut seq = 0u64;
+                    let mut pub_idx = 0;
+                    let num_pubs = shard_pubs.len();
                     
-                    let payload = generate_payload(seq, payload_size);
-                    let bytes = Bytes::from(payload);
-                    
-                    // Round-robin publish
-                    if let Some(ph) = pub_handles.get(pub_idx) {
-                        match ph.publish(bytes).await {
-                            Ok(_) => {
-                                stats_p.record_sent().await;
-                            }
-                            Err(e) => {
-                                // Log only occasionally to avoid flooding
-                                if seq % 1000 == 0 {
-                                    eprintln!("[multi_topic] send error (sample): {}", e);
+                    loop {
+                        if stop_flag.load(Ordering::Relaxed) {
+                            break;
+                        }
+                        rc.wait_for_next().await;
+                        
+                        let payload = generate_payload(seq, payload_size);
+                        let bytes = Bytes::from(payload);
+                        
+                        // Round-robin publish within shard
+                        if let Some(ph) = shard_pubs.get(pub_idx) {
+                            match ph.publish(bytes).await {
+                                Ok(_) => {
+                                    stats_p.record_sent().await;
                                 }
-                                stats_p.record_error().await;
+                                Err(e) => {
+                                    if seq % 1000 == 0 {
+                                        eprintln!("[multi_topic] send error (sample): {}", e);
+                                    }
+                                    stats_p.record_error().await;
+                                }
                             }
                         }
+                        
+                        seq = seq.wrapping_add(1);
+                        pub_idx = (pub_idx + 1) % num_pubs;
                     }
                     
-                    seq = seq.wrapping_add(1);
-                    pub_idx = (pub_idx + 1) % num_pubs;
-                }
-                
-                // Shutdown all handles
-                for ph in pub_handles {
-                    let _ = ph.shutdown().await;
-                }
-            }));
+                    for ph in shard_pubs {
+                        let _ = ph.shutdown().await;
+                    }
+                }));
+            }
         } else {
             // No rate limit: spawn per-publisher tasks for max throughput
             for (i, pub_handle) in pub_handles.into_iter().enumerate() {
@@ -439,10 +456,16 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
     };
 
     // Batched stats worker via channel
-    let (tx, rx) = flume::unbounded::<(u64, [u8; 24])>();
+    // Increase channel capacity to avoid backpressure on high-throughput scenarios
+    let (tx, rx) = flume::bounded::<(u64, [u8; 24])>(1_000_000);
     let stats_worker = stats.clone();
+    
+    // Spawn multiple stats workers to parallelize histogram recording if needed
+    // But histogram is protected by RwLock, so single writer is better.
+    // However, we can optimize the batch size and loop.
     tokio::spawn(async move {
-        let mut buf = Vec::with_capacity(1024);
+        let mut buf = Vec::with_capacity(4096);
+        let mut lats = Vec::with_capacity(4096);
         loop {
             let first = match rx.recv_async().await {
                 Ok(v) => v,
@@ -450,13 +473,14 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
             };
             buf.clear();
             buf.push(first);
+            // Drain more aggressively
             while let Ok(v) = rx.try_recv() {
                 buf.push(v);
-                if buf.len() >= 2048 {
+                if buf.len() >= 4096 {
                     break;
                 }
             }
-            let mut lats = Vec::with_capacity(buf.len());
+            lats.clear();
             for (recv_ns, hdr) in buf.drain(..) {
                 if let Ok(h) = parse_header(&hdr) {
                     lats.push(recv_ns.saturating_sub(h.timestamp_ns));

@@ -325,7 +325,7 @@ make_connect_args() {
 			if [[ -n "${MQTT_MAX_OUT:-}" ]]; then max_opts+=(--connect "max_out=${MQTT_MAX_OUT}"); fi
 			_out=(--engine mqtt --connect "host=${host}" --connect "port=${port}" "${user_opt[@]}" "${pass_opt[@]}" "${max_opts[@]}")
 			;;
-		mqtt-artemis)
+		mqtt-artemis|artemis)
 			local host="${ARTEMIS_HOST:-127.0.0.1}"
 			local port="${ARTEMIS_MQTT_PORT:-1887}"
 			# Defaults from docker-compose.yml: ARTEMIS_USERNAME=admin, ARTEMIS_PASSWORD=admin
@@ -338,6 +338,8 @@ make_connect_args() {
 			if [[ -n "${MQTT_MAX_PACKET:-}" ]]; then max_opts+=(--connect "max_packet=${MQTT_MAX_PACKET}"); fi
 			if [[ -n "${MQTT_MAX_IN:-}" ]]; then max_opts+=(--connect "max_in=${MQTT_MAX_IN}"); fi
 			if [[ -n "${MQTT_MAX_OUT:-}" ]]; then max_opts+=(--connect "max_out=${MQTT_MAX_OUT}"); fi
+			# Artemis requires client_id to be set for durable subscriptions or just good practice
+			# We can use a random one or let the client gen it, but let's ensure we pass credentials correctly.
 			_out=(--engine mqtt --connect "host=${host}" --connect "port=${port}" "${user_opt[@]}" "${pass_opt[@]}" "${max_opts[@]}")
 			;;
 		nats)

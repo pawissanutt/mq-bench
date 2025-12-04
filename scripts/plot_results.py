@@ -33,7 +33,8 @@ from typing import Tuple
 def parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser()
     p.add_argument("--summary", required=True, help="Path to summary.csv")
-    p.add_argument("--out-dir", required=True, help="Output directory for plots")
+    p.add_argument("--out-dir", help="Output directory for plots (default: 'plots' subdirectory in summary's folder)")
+    p.add_argument("--only-latency-vs-payload", action="store_true", help="Only generate Latency vs Payload plots")
     return p.parse_args()
 
 
@@ -161,6 +162,12 @@ def add_legend_top(ax, fig, max_cols: int = 4, reserve_top: float = 0.82) -> Non
 
 def main() -> int:
     args = parse_args()
+    
+    if not args.out_dir:
+        # Default to a 'plots' directory in the same location as the summary file
+        args.out_dir = os.path.join(os.path.dirname(os.path.abspath(args.summary)), "plots")
+        print(f"[plot] No --out-dir provided, using default: {args.out_dir}")
+
     os.makedirs(args.out_dir, exist_ok=True)
 
     # Matplotlib availability
@@ -214,7 +221,7 @@ def main() -> int:
     p99_vs_payload_imgs = {}  # rate -> filename
 
     # Throughput vs offered rate (skip if latency-only)
-    if not latency_only:
+    if not latency_only and not args.only_latency_vs_payload:
         for payload in payloads:
             fig, ax = plt.subplots(figsize=(7, 4))
             for t in transports:
@@ -244,7 +251,7 @@ def main() -> int:
 
     # Throughput vs Pairs (when run_id includes n<N>)
     # Only meaningful for non-latency-only inputs
-    if not latency_only:
+    if not latency_only and not args.only_latency_vs_payload:
         # Group by payload and transport, aggregate by pairs
         by_pt = defaultdict(list)
         for r in records:
@@ -280,15 +287,21 @@ def main() -> int:
     # Latency vs Pairs (when run_id includes n<N>)
     # Generate for any dataset type (latency-only or full), using p50/p95/p99
     # Group by payload and transport, aggregate by pairs
-    by_pt_lat_pairs = defaultdict(list)
-    for r in records:
-        if r.get("pairs") is None:
-            continue
-        by_pt_lat_pairs[(r["payload"], r["transport"])].append(r)
+    if not args.only_latency_vs_payload:
+        by_pt_lat_pairs = defaultdict(list)
+        for r in records:
+            if r.get("pairs") is None:
+                continue
+            by_pt_lat_pairs[(r["payload"], r["transport"])].append(r)
 
-    latency_pairs_imgs_p50 = {}
-    latency_pairs_imgs_p95 = {}
-    latency_pairs_imgs_p99 = {}
+        latency_pairs_imgs_p50 = {}
+        latency_pairs_imgs_p95 = {}
+        latency_pairs_imgs_p99 = {}
+    else:
+        by_pt_lat_pairs = {}
+        latency_pairs_imgs_p50 = {}
+        latency_pairs_imgs_p95 = {}
+        latency_pairs_imgs_p99 = {}
 
     def plot_latency_pairs(metric_key: str, title_prefix: str) -> dict:
         out = {}
@@ -344,6 +357,8 @@ def main() -> int:
 
     def plot_metric_vs_pairs(metric_key: str, title_prefix: str, y_label: str) -> dict:
         out = {}
+        if args.only_latency_vs_payload:
+            return out
         for payload in payloads:
             fig, ax = plt.subplots(figsize=(7, 4))
             for t in transports:
@@ -385,7 +400,7 @@ def main() -> int:
         mem_pairs_imgs = plot_metric_vs_pairs("max_mem_perc", "Max Memory%", "Max Memory (%)")
 
     # P99 vs offered rate (skip if latency-only; it's rate-based summary)
-    if not latency_only:
+    if not latency_only and not args.only_latency_vs_payload:
         for payload in payloads:
             fig, ax = plt.subplots(figsize=(7, 4))
             for t in transports:
@@ -419,7 +434,7 @@ def main() -> int:
             plt.close(fig)
 
     # Max CPU% vs offered rate (skip if latency-only)
-    if not latency_only:
+    if not latency_only and not args.only_latency_vs_payload:
         for payload in payloads:
             fig, ax = plt.subplots(figsize=(7, 4))
             for t in transports:
@@ -447,7 +462,7 @@ def main() -> int:
             plt.close(fig)
 
     # Max Memory% vs offered rate (skip if latency-only)
-    if not latency_only:
+    if not latency_only and not args.only_latency_vs_payload:
         for payload in payloads:
             fig, ax = plt.subplots(figsize=(7, 4))
             for t in transports:
@@ -478,11 +493,11 @@ def main() -> int:
     # One figure per rate; X = payload (bytes), Y = latency (ms); lines per transport
     from matplotlib.ticker import FuncFormatter, MaxNLocator
 
-    def plot_latency_vs_payload(metric_key: str, title_prefix: str, dataset) -> dict:
+    def plot_metric_vs_payload(metric_key: str, title_prefix: str, y_label: str, dataset, log_y: bool = True) -> dict:
         out = {}
         for rate in rates:
             fig, ax = plt.subplots(figsize=(7, 4))
-            kb_set = set()
+            log_kb_set = set()
             for t in transports:
                 # gather all records for this (rate, transport) across payloads
                 lst = [r for r in dataset if r["rate"] == rate and r["transport"] == t]
@@ -493,46 +508,64 @@ def main() -> int:
                 xs, ys = [], []
                 for r in lst:
                     val = r.get(metric_key)
-                    # Require finite and strictly positive for log-scale
-                    if val is None or (not math.isfinite(val)) or (val <= 0):
+                    # Require finite
+                    if val is None or (not math.isfinite(val)):
                         continue
-                    # Convert bytes to KB for x-axis
-                    x_kb = r["payload"] / 1024.0
-                    xs.append(x_kb)
+                    # For log scale, require strictly positive
+                    if log_y and val <= 0:
+                        continue
+
+                    # Convert bytes to KB, then take log2
+                    # payload is in bytes. 1KB = 1024 bytes.
+                    # log2(payload / 1024)
                     try:
-                        kb_set.add(int(round(x_kb)))
-                    except Exception:
-                        pass
+                        x_log = math.log2(r["payload"] / 1024.0)
+                    except ValueError:
+                        continue
+                    
+                    xs.append(x_log)
+                    log_kb_set.add(x_log)
                     ys.append(val)
                 if xs and ys:
                     m, ls = style_for(t)
                     ax.plot(xs, ys, marker=m, linestyle=ls, label=t)
+            
+            if not ax.has_data():
+                plt.close(fig)
+                continue
+
             ax.set_title(f"{title_prefix} vs Payload (rate={rate}/s)")
-            ax.set_xlabel("Payload size (KB)")
-            ax.set_ylabel(f"{title_prefix} (ms)")
-            # Use logarithmic Y-axis for latency
-            try:
-                ax.set_yscale("log")
-            except Exception:
-                pass
-            ax.grid(True, alpha=0.3)
-            # Use exact payload KBs as ticks; force-include 1KB tick for readability
-            if kb_set:
+            ax.set_xlabel("Payload size (log2 KB)")
+            ax.set_ylabel(y_label)
+            
+            if log_y:
                 try:
-                    kb_set.add(1)
+                    ax.set_yscale("log")
                 except Exception:
                     pass
-                xs_sorted = sorted(kb_set)
+            else:
+                ax.set_ylim(bottom=0)
+
+            ax.grid(True, alpha=0.3)
+            
+            if log_kb_set:
+                xs_sorted = sorted(log_kb_set)
+                # Add a small margin to x-axis so markers aren't cut off
+                margin = 0.5 if len(xs_sorted) > 1 else 0.1
                 try:
-                    ax.set_xlim(left=min(xs_sorted), right=max(xs_sorted))
+                    ax.set_xlim(left=min(xs_sorted) - margin, right=max(xs_sorted) + margin)
                 except Exception:
                     pass
                 ax.set_xticks(xs_sorted)
-            # Format ticks as plain integer values (in KB) without suffix
-            ax.xaxis.set_major_formatter(FuncFormatter(lambda v, _: f"{int(round(v))}"))
-            # Only apply a locator when we didn't set explicit ticks above
-            if not kb_set:
-                ax.xaxis.set_major_locator(MaxNLocator(nbins='auto', integer=True, min_n_ticks=3))
+            
+            # Format ticks as integer if they are close to integer
+            def log_formatter(v, pos):
+                if abs(v - round(v)) < 0.001:
+                    return f"{int(round(v))}"
+                return f"{v:.1f}"
+
+            ax.xaxis.set_major_formatter(FuncFormatter(log_formatter))
+            
             add_legend_top(ax, fig)
             fn = os.path.join(args.out_dir, f"{metric_key}_vs_payload_rate{rate}.png")
             fig.savefig(fn, dpi=150)
@@ -543,36 +576,42 @@ def main() -> int:
     # Use the appropriate dataset for latency vs payload
     latency_dataset = rate_records
     # Generate p50/p95/p99 vs payload (per rate)
-    p50_vs_payload_imgs = plot_latency_vs_payload("p50_ms", "P50 latency", latency_dataset)
-    p95_vs_payload_imgs = plot_latency_vs_payload("p95_ms", "P95 latency", latency_dataset)
-    p99_vs_payload_imgs = plot_latency_vs_payload("p99_ms", "P99 latency", latency_dataset)
+    p50_vs_payload_imgs = plot_metric_vs_payload("p50_ms", "P50 latency", "P50 latency (ms)", latency_dataset, log_y=True)
+    p95_vs_payload_imgs = plot_metric_vs_payload("p95_ms", "P95 latency", "P95 latency (ms)", latency_dataset, log_y=True)
+    p99_vs_payload_imgs = plot_metric_vs_payload("p99_ms", "P99 latency", "P99 latency (ms)", latency_dataset, log_y=True)
+    
+    # Generate CPU/Memory vs payload (per rate)
+    cpu_vs_payload_imgs = plot_metric_vs_payload("max_cpu", "Max CPU%", "Max CPU (%)", latency_dataset, log_y=False)
+    mem_vs_payload_imgs = plot_metric_vs_payload("max_mem_perc", "Max Memory%", "Max Memory (%)", latency_dataset, log_y=False)
+
 
     # Fanout plots: x = subscriber count, y = delivered throughput, per (payload, rate)
     fanout_rows = []
-    subs_pat = re.compile(r"-s(\d+)$")
-    for r in records:
-        t = r["transport"]
-        if t.startswith("fanout-"):
-            m = subs_pat.search(t)
-            if not m:
-                continue
-            try:
-                subs = int(m.group(1))
-            except Exception:
-                continue
-            # Normalize label e.g. fanout-mqtt-hivemq-s8 -> mqtt-hivemq
-            base_label = t[: t.rfind("-s")]
-            if base_label.startswith("fanout-"):
-                base_label = base_label[len("fanout-"):]
-            fanout_rows.append({
-                "payload": r["payload"],
-                "rate": r["rate"],
-                "subs": subs,
-                "sub_tps": r["sub_tps"],
-                "max_cpu": r.get("max_cpu"),
-                "max_mem_perc": r.get("max_mem_perc"),
-                "label": base_label,
-            })
+    if not args.only_latency_vs_payload:
+        subs_pat = re.compile(r"-s(\d+)$")
+        for r in records:
+            t = r["transport"]
+            if t.startswith("fanout-"):
+                m = subs_pat.search(t)
+                if not m:
+                    continue
+                try:
+                    subs = int(m.group(1))
+                except Exception:
+                    continue
+                # Normalize label e.g. fanout-mqtt-hivemq-s8 -> mqtt-hivemq
+                base_label = t[: t.rfind("-s")]
+                if base_label.startswith("fanout-"):
+                    base_label = base_label[len("fanout-"):]
+                fanout_rows.append({
+                    "payload": r["payload"],
+                    "rate": r["rate"],
+                    "subs": subs,
+                    "sub_tps": r["sub_tps"],
+                    "max_cpu": r.get("max_cpu"),
+                    "max_mem_perc": r.get("max_mem_perc"),
+                    "label": base_label,
+                })
 
     if fanout_rows:
         by_pr = defaultdict(list)  # (payload, rate) -> rows
@@ -695,6 +734,12 @@ def main() -> int:
                     f.write("- [Max Memory% vs Pairs](#max-memory-vs-pairs)\n")
             except Exception:
                 pass
+
+            if p50_vs_payload_imgs or p95_vs_payload_imgs or p99_vs_payload_imgs:
+                f.write("- [Latency vs Payload](#latency-vs-payload)\n")
+            if cpu_vs_payload_imgs or mem_vs_payload_imgs:
+                f.write("- [Resource Usage vs Payload](#resource-usage-vs-payload)\n")
+
             f.write("\n")
 
             if throughput_imgs:
@@ -828,6 +873,22 @@ def main() -> int:
                         img = p99_vs_payload_imgs[rate]
                         f.write(f"#### rate={rate}/s\n\n")
                         f.write(f"![p99 vs payload r{rate}]({img})\n\n")
+
+            # Resource Usage vs Payload (per rate)
+            if cpu_vs_payload_imgs or mem_vs_payload_imgs:
+                f.write("## Resource Usage vs Payload\n\n")
+                if cpu_vs_payload_imgs:
+                    f.write("### Max CPU%\n\n")
+                    for rate in sorted(cpu_vs_payload_imgs.keys()):
+                        img = cpu_vs_payload_imgs[rate]
+                        f.write(f"#### rate={rate}/s\n\n")
+                        f.write(f"![cpu vs payload r{rate}]({img})\n\n")
+                if mem_vs_payload_imgs:
+                    f.write("### Max Memory%\n\n")
+                    for rate in sorted(mem_vs_payload_imgs.keys()):
+                        img = mem_vs_payload_imgs[rate]
+                        f.write(f"#### rate={rate}/s\n\n")
+                        f.write(f"![mem vs payload r{rate}]({img})\n\n")
 
             if fanout_imgs:
                 f.write("## Fanout: Delivered throughput\n\n")

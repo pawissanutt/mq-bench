@@ -79,8 +79,8 @@ impl Stats {
         // Bump received count once
         self.received_count
             .fetch_add(latencies_ns.len() as u64, Ordering::Relaxed);
-        // Set first_received_time if unset
-        {
+        // Set first_received_time if unset (double-checked locking optimization)
+        if self.first_received_time.read().await.is_none() {
             let mut first = self.first_received_time.write().await;
             if first.is_none() {
                 *first = Some(Instant::now());

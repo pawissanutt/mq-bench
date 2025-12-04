@@ -7,7 +7,10 @@ services:
       - "1883:1883"
     volumes:
       - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
-    
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
   emqx:
     image: emqx:5.8
     container_name: emqx
@@ -18,29 +21,41 @@ services:
       - EMQX_ALLOW_ANONYMOUS=true
       - EMQX_AUTHORIZATION__NO_MATCH=allow
       - EMQX_LOG__LEVEL=info
-
+      - EMQX_MQTT__MAX_PACKET_SIZE=10MB
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
   hivemq:
     image: hivemq/hivemq-ce:latest
     container_name: hivemq
     ports:
       - "1885:1883"   # MQTT TCP
       - "8081:8080"   # Dashboard (optional)
-
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
   rabbitmq:
     image: rabbitmq:4-management
     container_name: rabbitmq
     # Enable MQTT plugin and start server
     command: ["bash", "-lc", "rabbitmq-plugins enable --offline rabbitmq_mqtt; rabbitmq-server"]
+    volumes:
+      - ./config/rabbitmq.conf:/etc/rabbitmq/rabbitmq.conf:ro
     ports:
       - "5672:5672"   # AMQP
       - "15672:15672" # Management UI
       - "1886:1883"   # MQTT plugin (host port 1886 to avoid clashing with other brokers)
-
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
   artemis:
     image: apache/activemq-artemis:latest-alpine
     container_name: artemis
     environment:
-      - ARTEMIS_USERNAME=admin
+      - ARTEMIS_USER=admin
       - ARTEMIS_PASSWORD=admin
     ports:
       - "5673:5672"   # AMQP 1.0 (host 5673 to avoid RabbitMQ 5672)
@@ -48,20 +63,32 @@ services:
       - "61616:61616" # OpenWire
       - "61614:61613" # STOMP (host 61614)
       - "8161:8161"   # Web console
-
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
   nats:
     image: nats:2
     container_name: nats
-    command: ["-p", "4222"]
+    command: ["-c", "/etc/nats/nats.conf"]
     ports:
       - "4222:4222"   # NATS TCP
-
+    volumes:
+      - ./config/nats.conf:/etc/nats/nats.conf:ro
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
   redis:
     image: redis:7-alpine
     container_name: redis
     ports:
       - "6379:6379"
     command: ["redis-server", "--save", "", "--appendonly", "no"]
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
 
   router1:
     image: eclipse/zenoh-bridge-mqtt:1.6.2
@@ -74,11 +101,14 @@ services:
       - ./config/router1.json5:/etc/zenoh/router1.json5:ro
     environment:
       RUST_LOG: info
+<<<<<<< HEAD
     deploy:
       resources:
         limits:
           cpus: '1.0'
           memory: 1G
+=======
+>>>>>>> b62b456 (Add throughput script)
     ulimits:
       nofile:
         soft: 65535
@@ -97,6 +127,10 @@ services:
       - ./config/router2.json5:/etc/zenoh/router2.json5:ro
     environment:
       RUST_LOG: info
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535
 
   router3:
     deploy:
@@ -111,3 +145,7 @@ services:
       - ./config/router3.json5:/etc/zenoh/router3.json5:ro
     environment:
       RUST_LOG: info
+    ulimits:
+      nofile:
+        soft: 65535
+        hard: 65535

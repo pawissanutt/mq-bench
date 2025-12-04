@@ -1,0 +1,41 @@
+nohup: ignoring input
+[22:12:38] Inferred HOST=192.168.0.253 from SSH_TARGET
+[22:12:38] Resolved: SUMMARY_CSV=/home/cc/mq-bench/results/latency_vs_payload_20251203_221238/raw_data/summary.csv | PLOTS_DIR=/home/cc/mq-bench/results/latency_vs_payload_20251203_221238/plots | RAW_DIR=/home/cc/mq-bench/results/latency_vs_payload_20251203_221238/raw_data
+[22:12:38] Resolved payloads (bytes): 1024 2048 4096 8192 16384 32768 65536 131072 262144 524288 1048576 2097152
+[22:12:38] Latency vs payload benchmark → /home/cc/mq-bench/results/latency_vs_payload_20251203_221238
+[22:12:38] Starting services: router1 router2
+[22:12:38] [remote] ubuntu@192.168.0.253: cd /home/ubuntu && docker compose down
+[22:12:39] [remote] ubuntu@192.168.0.253: cd /home/ubuntu && docker compose up -d router1 router2
+ Network ubuntu_default  Creating
+ Network ubuntu_default  Created
+ Container router1  Creating
+ Container router2  Creating
+ Container router1  Created
+ Container router2  Created
+ Container router1  Starting
+ Container router2  Starting
+ Container router2  Started
+ Container router1  Started
+[22:12:45] Warmup: transport=zenoh payload=1024B duration=5s
+[22:12:45] Starting remote stats collector on 192.168.0.253...
+[run_multi_topic_perkey] latency_20251203_221245_zenoh_p1024_n10_r100_warmup (ENGINE=zenoh)
+Dims: T=10 R=1 S=1 K=1 | subs=10 pubs=10 mapping=mdim
+Load: payload=1024 rate_per_pub=100 dur=5s snapshot=5s share_transport=true
+Paths: sub=tcp/192.168.0.253:7447 pub=tcp/192.168.0.253:7448 prefix=bench/pair mode=client
+Starting per-key subscribers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-sub --engine zenoh --endpoint tcp/192.168.0.253:7447 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --subscribers 10 --mapping mdim --duration 5 --share-transport --csv artifacts/latency_20251203_221245_zenoh_p1024_n10_r100_warmup/fanout_multi_topic_perkey/sub_agg.csv 
+       1>artifacts/latency_20251203_221245_zenoh_p1024_n10_r100_warmup/fanout_multi_topic_perkey/mt_sub.log 2>&1 &
+Starting multi-topic publishers
+[cmd] ./target/release/mq-bench --snapshot-interval 5 mt-pub --engine zenoh --endpoint tcp/192.168.0.253:7448 --topic-prefix bench/pair --tenants 10 --regions 1 --services 1 --shards 1 --publishers 10 --mapping mdim --payload 1024 --rate 100 --duration 5 --share-transport --csv artifacts/latency_20251203_221245_zenoh_p1024_n10_r100_warmup/fanout_multi_topic_perkey/mt_pub.csv 
+       1>artifacts/latency_20251203_221245_zenoh_p1024_n10_r100_warmup/fanout_multi_topic_perkey/mt_pub.log 2>&1 &
+[watch] printing status every 5s...
+[watch] printing status every 5s...
+[status] PUB sent=- itps=- tps=- | SUB recv=0 itps=0.00 p99=0.00ms
+[status] PUB sent=5001 itps=1000.18 tps=1000.49 | SUB recv=3991 itps=798.23 p99=3.12ms
+\n=== Summary (latency_20251203_221245_zenoh_p1024_n10_r100_warmup) ===
+=== Summary ===
+Publisher: sent=5001 total_tps=1000.49
+Subscriber: recv=3991 total_tps=1000.35 p50=0.64ms p95=2.61ms p99=3.12ms
+Multi-topic per-key scenario complete. Artifacts at artifacts/latency_20251203_221245_zenoh_p1024_n10_r100_warmup/fanout_multi_topic_perkey
+Stopping subscribers (343701)
+[22:12:56] Cooldown: sleeping 15s...
