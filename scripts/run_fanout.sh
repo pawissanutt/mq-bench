@@ -64,16 +64,17 @@ print_status() {
 	local last_sub last_pub
 	last_sub=$(tail -n +2 "$sub_file" 2>/dev/null | tail -n1 || true)
 	last_pub=$(tail -n +2 "$pub_file" 2>/dev/null | tail -n1 || true)
-	local spub itpub ttpub rsub itsub p99sub
+	local spub itpub ttpub rsub itsub p99sub conns_pub active_pub conns_sub active_sub
 	if [[ -n "$last_pub" ]]; then
-		IFS=, read -r _ spub _ epub ttpub itpub _ _ _ _ _ _ <<<"$last_pub"
+		IFS=, read -r _ spub _ epub ttpub itpub _ _ _ _ _ _ conns_pub active_pub <<<"$last_pub"
 	fi
 	if [[ -n "$last_sub" ]]; then
-		IFS=, read -r _ _ rsub _ _ itsub _ _ p99sub _ _ _ <<<"$last_sub"
+		IFS=, read -r _ _ rsub _ _ itsub _ _ p99sub _ _ _ conns_sub active_sub <<<"$last_sub"
 	fi
-	printf "[status] PUB sent=%s itps=%s tps=%s | SUB recv=%s itps=%s p99=%.2fms\n" \
-		"${spub:--}" "${itpub:--}" "${ttpub:--}" \
-		"${rsub:--}" "${itsub:--}" "$(awk -v n="${p99sub:-0}" 'BEGIN{printf (n/1e6)}')"
+	printf "[status] PUB sent=%s itps=%s tps=%s conn=%s/%s | SUB recv=%s itps=%s p99=%.2fms conn=%s/%s\n" \
+		"${spub:--}" "${itpub:--}" "${ttpub:--}" "${active_pub:--}" "${conns_pub:--}" \
+		"${rsub:--}" "${itsub:--}" "$(awk -v n="${p99sub:-0}" 'BEGIN{printf (n/1e6)}')" \
+		"${active_sub:--}" "${conns_sub:--}"
 }
 
 watch_until_pub_exits ${PUB_PID} "${SUB_CSV}" "${PUB_CSV}"

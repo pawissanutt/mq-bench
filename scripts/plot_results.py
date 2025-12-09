@@ -49,6 +49,8 @@ def load_records(csv_path: str):
                         "max_cpu": float(r.get("max_cpu_perc", "") or float("nan")),
                         "max_mem_perc": float(r.get("max_mem_perc", "") or float("nan")),
                         "max_mem_bytes": float(r.get("max_mem_used_bytes", "") or float("nan")),
+                        "connections": int(r.get("connections", "") or 0),
+                        "active_connections": int(r.get("active_connections", "") or 0),
                     }
                 )
             except Exception:

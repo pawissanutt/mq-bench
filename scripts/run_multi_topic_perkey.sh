@@ -19,13 +19,13 @@ def MAPPING   "${MAPPING:-mdim}"
 def PAYLOAD   "${PAYLOAD:-1024}"
 def RATE      "${RATE:-10}"
 def DURATION  "${DURATION:-30}"
-def SNAPSHOT  "${SNAPSHOT:-5}"
-def SHARE_TRANSPORT "${SHARE_TRANSPORT:-true}"
+def SNAPSHOT  "${SNAPSHOT:-1}"
+def SHARE_TRANSPORT "${SHARE_TRANSPORT:-false}"
 ENGINE="${ENGINE:-zenoh}"
 
 def TOPIC_PREFIX "${TOPIC_PREFIX:-bench/mtopic}"
 def ENDPOINT_SUB "${ENDPOINT_SUB:-tcp/127.0.0.1:7447}"
-def ENDPOINT_PUB "${ENDPOINT_PUB:-tcp/127.0.0.1:7448}"
+def ENDPOINT_PUB "${ENDPOINT_PUB:-tcp/127.0.0.1:7447}"
 # Optional: set ZENOH_MODE=client|peer to configure session mode via --connect
 def ZENOH_MODE "${ZENOH_MODE:-}"
 

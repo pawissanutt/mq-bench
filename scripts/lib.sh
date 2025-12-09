@@ -413,16 +413,17 @@ print_status_common() {
 	local last_sub last_pub
 	last_sub=$(tail -n +2 "$sub_file" 2>/dev/null | tail -n1 || true)
 	last_pub=$(tail -n +2 "$pub_file" 2>/dev/null | tail -n1 || true)
-	local spub itpub ttpub rsub itsub p99sub
+	local spub itpub ttpub rsub itsub p99sub conns_pub active_pub conns_sub active_sub
 	if [[ -n "$last_pub" ]]; then
-		IFS=, read -r _ spub _ epub ttpub itpub _ _ _ _ _ _ <<<"$last_pub"
+		IFS=, read -r _ spub _ epub ttpub itpub _ _ _ _ _ _ conns_pub active_pub <<<"$last_pub"
 	fi
 	if [[ -n "$last_sub" ]]; then
-		IFS=, read -r _ _ rsub _ _ itsub _ _ p99sub _ _ _ <<<"$last_sub"
+		IFS=, read -r _ _ rsub _ _ itsub _ _ p99sub _ _ _ conns_sub active_sub <<<"$last_sub"
 	fi
-	printf "[status] PUB sent=%s itps=%s tps=%s | SUB recv=%s itps=%s p99=%.2fms\n" \
-		"${spub:--}" "${itpub:--}" "${ttpub:--}" \
-		"${rsub:--}" "${itsub:--}" "$(awk -v n="${p99sub:-0}" 'BEGIN{printf (n/1e6)}')"
+	printf "[status] PUB sent=%s itps=%s tps=%s conn=%s/%s | SUB recv=%s itps=%s p99=%.2fms conn=%s/%s\n" \
+		"${spub:--}" "${itpub:--}" "${ttpub:--}" "${active_pub:--}" "${conns_pub:--}" \
+		"${rsub:--}" "${itsub:--}" "$(awk -v n="${p99sub:-0}" 'BEGIN{printf (n/1e6)}')" \
+		"${active_sub:--}" "${conns_sub:--}"
 }
 
 # Watch loop until pub exits
@@ -443,14 +444,15 @@ summarize_common() {
 	final_pub=$(tail -n +2 "${pub_csv}" 2>/dev/null | tail -n1 || true)
 	final_sub=$(tail -n +2 "${sub_csv}" 2>/dev/null | tail -n1 || true)
 	if [[ -n "$final_pub" ]]; then
-		IFS=, read -r _ tsent _ terr tt _ _ _ _ _ _ _ <<<"$final_pub"
-		echo "Publisher: sent=${tsent} total_tps=${tt}"
+		IFS=, read -r _ tsent _ terr tt _ _ _ _ _ _ _ conns_pub active_pub <<<"$final_pub"
+		echo "Publisher: sent=${tsent} total_tps=${tt} connections=${conns_pub:-0} active=${active_pub:-0}"
 	fi
 	if [[ -n "$final_sub" ]]; then
-		IFS=, read -r _ _ rcv _ tps _ p50 p95 p99 _ _ _ <<<"$final_sub"
-		printf "Subscriber: recv=%s total_tps=%.2f p50=%.2fms p95=%.2fms p99=%.2fms\n" \
+		IFS=, read -r _ _ rcv _ tps _ p50 p95 p99 _ _ _ conns_sub active_sub <<<"$final_sub"
+		printf "Subscriber: recv=%s total_tps=%.2f p50=%.2fms p95=%.2fms p99=%.2fms connections=%s active=%s\n" \
 			"$rcv" "$tps" "$(awk -v n="$p50" 'BEGIN{printf (n/1e6)}')" \
-			"$(awk -v n="$p95" 'BEGIN{printf (n/1e6)}')" "$(awk -v n="$p99" 'BEGIN{printf (n/1e6)}')"
+			"$(awk -v n="$p95" 'BEGIN{printf (n/1e6)}')" "$(awk -v n="$p99" 'BEGIN{printf (n/1e6)}')" \
+			"${conns_sub:-0}" "${active_sub:-0}"
 	fi
 }
 
