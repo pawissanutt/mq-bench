@@ -429,8 +429,8 @@ append_summary_from_artifacts() {
 # Map transport/broker to docker-compose service names
 get_services() {
   case "$1" in
-    zenoh) echo "router1 router2" ;;
-    zenoh-mqtt) echo "router1 router2" ;;
+    zenoh) echo "router1" ;;
+    zenoh-mqtt) echo "router1" ;;
     redis) echo "redis" ;;
     nats) echo "nats" ;;
     rabbitmq) echo "rabbitmq" ;;
@@ -520,18 +520,18 @@ run_single_execution() {
   case "${transport}" in
     zenoh)
       if [[ -n "${HOST}" ]]; then
-        host_env="ENDPOINT_SUB=tcp/${HOST}:7447 ENDPOINT_PUB=tcp/${HOST}:7448"
+        host_env="ENDPOINT_SUB=tcp/${HOST}:7447 ENDPOINT_PUB=tcp/${HOST}:7447"
       else
-        host_env="ENDPOINT_SUB=tcp/127.0.0.1:7447 ENDPOINT_PUB=tcp/127.0.0.1:7448"
+        host_env="ENDPOINT_SUB=tcp/127.0.0.1:7447 ENDPOINT_PUB=tcp/127.0.0.1:7447"
       fi
       run "ENGINE=zenoh ${host_env} ${env_common} bash \"${SCRIPT_DIR}/run_multi_topic_perkey.sh\" \"${rid}\""
       ;;
     zenoh-mqtt)
-      # Mixed engines via bridge: subscribers over MQTT on 1888 (bridge), publishers over zenoh on 7448
+      # Mixed engines via bridge: subscribers over MQTT on 1888 (bridge), publishers over zenoh on 7447
       if [[ -n "${HOST}" ]]; then
-        host_env="ENGINE_SUB=mqtt MQTT_HOST=${HOST} MQTT_PORT=1888 ENGINE_PUB=zenoh ENDPOINT_PUB=tcp/${HOST}:7448"
+        host_env="ENGINE_SUB=mqtt MQTT_HOST=${HOST} MQTT_PORT=1888 ENGINE_PUB=zenoh ENDPOINT_PUB=tcp/${HOST}:7447"
       else
-        host_env="ENGINE_SUB=mqtt MQTT_HOST=127.0.0.1 MQTT_PORT=1888 ENGINE_PUB=zenoh ENDPOINT_PUB=tcp/127.0.0.1:7448"
+        host_env="ENGINE_SUB=mqtt MQTT_HOST=127.0.0.1 MQTT_PORT=1888 ENGINE_PUB=zenoh ENDPOINT_PUB=tcp/127.0.0.1:7447"
       fi
       run "${host_env} ${env_common} bash \"${SCRIPT_DIR}/run_multi_topic_perkey.sh\" \"${rid}\""
       ;;

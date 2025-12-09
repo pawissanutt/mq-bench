@@ -8,7 +8,7 @@ source "${SCRIPT_DIR}/lib.sh"
 # Usage: scripts/run_fanout.sh [RUN_ID] [SUBS=4] [RATE=10000] [DURATION=30]
 # Env:
 #   ENGINE=zenoh (default) | mqtt | redis | nats
-#   For zenoh:   ENDPOINT_SUB=tcp/127.0.0.1:7448  ENDPOINT_PUB=tcp/127.0.0.1:7447  [optional] ZENOH_MODE=
+#   For zenoh:   ENDPOINT_SUB=tcp/127.0.0.1:7447  ENDPOINT_PUB=tcp/127.0.0.1:7447  [optional] ZENOH_MODE=
 #   For mqtt:    MQTT_HOST=127.0.0.1  MQTT_PORT=1883
 #   For redis:   REDIS_URL=redis://127.0.0.1:6379
 #   For nats:    NATS_HOST=127.0.0.1  NATS_PORT=4222

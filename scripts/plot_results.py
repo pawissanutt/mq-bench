@@ -104,6 +104,9 @@ def load_records(csv_path: str):
                     "max_cpu": float(r.get("max_cpu_perc", "") or float("nan")),
                     "max_mem_perc": float(r.get("max_mem_perc", "") or float("nan")),
                     "max_mem_bytes": float(r.get("max_mem_used_bytes", "") or float("nan")),
+                    "avg_cpu": float(r.get("avg_cpu_perc", "") or float("nan")),
+                    "avg_mem_perc": float(r.get("avg_mem_perc", "") or float("nan")),
+                    "avg_mem_bytes": float(r.get("avg_mem_used_bytes", "") or float("nan")),
                     "run_id": r.get("run_id", ""),
                 }
                 # Extract pairs 'n<NNN>' from run_id if present
@@ -126,6 +129,20 @@ def load_records(csv_path: str):
 
 def unique_sorted(seq):
     return sorted(set(seq))
+
+
+def dedupe_by_pairs(records_list: list) -> list:
+    """Deduplicate records by pairs count, keeping the last entry for each pairs value.
+    
+    This handles cases where multiple benchmark runs with the same pairs count
+    exist in the summary CSV (e.g., from multiple executions or appending).
+    """
+    by_pairs = {}
+    for r in records_list:
+        pairs = r.get("pairs")
+        if pairs is not None:
+            by_pairs[pairs] = r  # Later entries overwrite earlier ones
+    return list(by_pairs.values())
 
 
 def add_legend_top(ax, fig, max_cols: int = 4, reserve_top: float = 0.82) -> None:
@@ -158,6 +175,38 @@ def add_legend_top(ax, fig, max_cols: int = 4, reserve_top: float = 0.82) -> Non
     except Exception:
         pass
     fig.legend(handles2, labels2, loc="upper center", bbox_to_anchor=(0.5, 0.99), ncol=ncol, frameon=False)
+
+
+def format_pairs_axis(ax, data_xs: list) -> None:
+    """Format the x-axis for pairs plots with scientific notation like 2×10³."""
+    from matplotlib.ticker import FuncFormatter, FixedLocator
+    
+    def sci_formatter(x, pos):
+        if x <= 0:
+            return "0"
+        exp = int(math.floor(math.log10(x)))
+        coef = x / (10 ** exp)
+        if abs(coef - round(coef)) < 0.01:
+            coef = int(round(coef))
+        if exp == 0:
+            return f"{coef}"
+        elif exp == 1:
+            return f"{int(coef * 10)}" if coef != 1 else "10"
+        elif exp == 2:
+            return f"{int(coef * 100)}" if coef == 1 else f"{coef}×10²"
+        else:
+            # Use superscript for exponent
+            superscripts = "⁰¹²³⁴⁵⁶⁷⁸⁹"
+            exp_str = "".join(superscripts[int(d)] for d in str(exp))
+            if coef == 1:
+                return f"10{exp_str}"
+            return f"{coef}×10{exp_str}"
+    
+    # Set tick locations to actual data points
+    if data_xs:
+        unique_xs = sorted(set(data_xs))
+        ax.xaxis.set_major_locator(FixedLocator(unique_xs))
+    ax.xaxis.set_major_formatter(FuncFormatter(sci_formatter))
 
 
 def main() -> int:
@@ -251,6 +300,7 @@ def main() -> int:
 
     # Throughput vs Pairs (when run_id includes n<N>)
     # Only meaningful for non-latency-only inputs
+    # Generate both log-scale and linear-scale versions
     if not latency_only and not args.only_latency_vs_payload:
         # Group by payload and transport, aggregate by pairs
         by_pt = defaultdict(list)
@@ -261,27 +311,64 @@ def main() -> int:
                 continue
             by_pt[(r["payload"], r["transport"])].append(r)
         throughput_pairs_imgs = {}
+        throughput_pairs_imgs_linear = {}
         for payload in payloads:
-            fig, ax = plt.subplots(figsize=(7, 4))
+            # Collect data once for both plots
+            plot_data = {}  # transport -> (xs, ys)
+            all_xs = []
             for t in transports:
                 lst = by_pt.get((payload, t), [])
                 if not lst:
                     continue
+                # Deduplicate by pairs count (keep last entry for each pairs value)
+                lst = dedupe_by_pairs(lst)
                 lst = sorted(lst, key=lambda x: (x.get("pairs") or 0))
                 xs = [x.get("pairs") for x in lst if x.get("pairs") is not None]
                 ys = [x.get("sub_tps") for x in lst if x.get("pairs") is not None and math.isfinite(x.get("sub_tps", float("nan")))]
                 if xs and ys:
-                    m, ls = style_for(t)
-                    ax.plot(xs, ys, marker=m, linestyle=ls, label=t)
-            ax.set_title(f"Delivered Throughput vs Pairs (payload={payload}B)")
+                    plot_data[t] = (xs, ys)
+                    all_xs.extend(xs)
+            
+            if not plot_data:
+                continue
+            
+            # Plot 1: Log scale (existing behavior)
+            fig, ax = plt.subplots(figsize=(7, 4))
+            for t, (xs, ys) in plot_data.items():
+                m, ls = style_for(t)
+                ax.plot(xs, ys, marker=m, linestyle=ls, label=t)
+            ax.set_title(f"Delivered Throughput vs Pairs (payload={payload}B) [Log Scale]")
             ax.set_xlabel("Pairs (N publishers = N subscribers)")
             ax.set_ylabel("Delivered throughput (msg/s)")
             ax.grid(True, alpha=0.3)
             ax.set_xscale("log")
+            format_pairs_axis(ax, all_xs)
             add_legend_top(ax, fig)
-            fn = os.path.join(args.out_dir, f"throughput_vs_pairs_payload{payload}.png")
+            fn = os.path.join(args.out_dir, f"throughput_vs_pairs_payload{payload}_log.png")
             fig.savefig(fn, dpi=150)
             throughput_pairs_imgs[payload] = os.path.basename(fn)
+            plt.close(fig)
+            
+            # Plot 2: Linear scale (new)
+            fig, ax = plt.subplots(figsize=(7, 4))
+            for t, (xs, ys) in plot_data.items():
+                m, ls = style_for(t)
+                ax.plot(xs, ys, marker=m, linestyle=ls, label=t)
+            ax.set_title(f"Delivered Throughput vs Pairs (payload={payload}B) [Linear Scale]")
+            ax.set_xlabel("Pairs (N publishers = N subscribers)")
+            ax.set_ylabel("Delivered throughput (msg/s)")
+            ax.grid(True, alpha=0.3)
+            # Linear scale - use default formatting with thousands separator
+            ax.ticklabel_format(style='plain', axis='x')
+            try:
+                from matplotlib.ticker import FuncFormatter
+                ax.xaxis.set_major_formatter(FuncFormatter(lambda x, p: format(int(x), ',')))
+            except Exception:
+                pass
+            add_legend_top(ax, fig)
+            fn = os.path.join(args.out_dir, f"throughput_vs_pairs_payload{payload}_linear.png")
+            fig.savefig(fn, dpi=150)
+            throughput_pairs_imgs_linear[payload] = os.path.basename(fn)
             plt.close(fig)
 
     # Latency vs Pairs (when run_id includes n<N>)
@@ -307,10 +394,13 @@ def main() -> int:
         out = {}
         for payload in payloads:
             fig, ax = plt.subplots(figsize=(7, 4))
+            all_xs = []  # Collect all x values for axis formatting
             for t in transports:
                 lst = by_pt_lat_pairs.get((payload, t), [])
                 if not lst:
                     continue
+                # Deduplicate by pairs count (keep last entry for each pairs value)
+                lst = dedupe_by_pairs(lst)
                 lst = sorted(lst, key=lambda x: (x.get("pairs") or 0))
                 xs, ys = [], []
                 for x in lst:
@@ -323,6 +413,7 @@ def main() -> int:
                 if xs and ys:
                     m, ls = style_for(t)
                     ax.plot(xs, ys, marker=m, linestyle=ls, label=t)
+                    all_xs.extend(xs)
             if not ax.has_data():
                 plt.close(fig)
                 continue
@@ -339,6 +430,7 @@ def main() -> int:
                 ax.set_yscale("log")
             except Exception:
                 pass
+            format_pairs_axis(ax, all_xs)
             add_legend_top(ax, fig)
             fn = os.path.join(args.out_dir, f"{metric_key}_vs_pairs_payload{payload}.png")
             fig.savefig(fn, dpi=150)
@@ -354,6 +446,8 @@ def main() -> int:
     # CPU/Memory vs Pairs (when run_id includes n<N>)
     cpu_pairs_imgs = {}
     mem_pairs_imgs = {}
+    avg_cpu_pairs_imgs = {}
+    avg_mem_pairs_imgs = {}
 
     def plot_metric_vs_pairs(metric_key: str, title_prefix: str, y_label: str) -> dict:
         out = {}
@@ -361,10 +455,13 @@ def main() -> int:
             return out
         for payload in payloads:
             fig, ax = plt.subplots(figsize=(7, 4))
+            all_xs = []  # Collect all x values for axis formatting
             for t in transports:
                 lst = by_pt_lat_pairs.get((payload, t), [])
                 if not lst:
                     continue
+                # Deduplicate by pairs count (keep last entry for each pairs value)
+                lst = dedupe_by_pairs(lst)
                 lst = sorted(lst, key=lambda x: (x.get("pairs") or 0))
                 xs, ys = [], []
                 for x in lst:
@@ -377,6 +474,7 @@ def main() -> int:
                 if xs and ys:
                     m, ls = style_for(t)
                     ax.plot(xs, ys, marker=m, linestyle=ls, label=t)
+                    all_xs.extend(xs)
             if not ax.has_data():
                 plt.close(fig)
                 continue
@@ -388,6 +486,7 @@ def main() -> int:
                 ax.set_xscale("log")
             except Exception:
                 pass
+            format_pairs_axis(ax, all_xs)
             add_legend_top(ax, fig)
             fn = os.path.join(args.out_dir, f"{metric_key}_vs_pairs_payload{payload}.png")
             fig.savefig(fn, dpi=150)
@@ -398,6 +497,8 @@ def main() -> int:
     if by_pt_lat_pairs:
         cpu_pairs_imgs = plot_metric_vs_pairs("max_cpu", "Max CPU%", "Max CPU (%)")
         mem_pairs_imgs = plot_metric_vs_pairs("max_mem_perc", "Max Memory%", "Max Memory (%)")
+        avg_cpu_pairs_imgs = plot_metric_vs_pairs("avg_cpu", "Avg CPU%", "Avg CPU (%)")
+        avg_mem_pairs_imgs = plot_metric_vs_pairs("avg_mem_perc", "Avg Memory%", "Avg Memory (%)")
 
     # P99 vs offered rate (skip if latency-only; it's rate-based summary)
     if not latency_only and not args.only_latency_vs_payload:
@@ -734,6 +835,16 @@ def main() -> int:
                     f.write("- [Max Memory% vs Pairs](#max-memory-vs-pairs)\n")
             except Exception:
                 pass
+            try:
+                if 'avg_cpu_pairs_imgs' in locals() and avg_cpu_pairs_imgs:
+                    f.write("- [Avg CPU% vs Pairs](#avg-cpu-vs-pairs)\n")
+            except Exception:
+                pass
+            try:
+                if 'avg_mem_pairs_imgs' in locals() and avg_mem_pairs_imgs:
+                    f.write("- [Avg Memory% vs Pairs](#avg-memory-vs-pairs)\n")
+            except Exception:
+                pass
 
             if p50_vs_payload_imgs or p95_vs_payload_imgs or p99_vs_payload_imgs:
                 f.write("- [Latency vs Payload](#latency-vs-payload)\n")
@@ -756,11 +867,17 @@ def main() -> int:
                 if 'throughput_pairs_imgs' in locals() and throughput_pairs_imgs:
                     f.write("## Throughput vs Pairs\n\n")
                     for payload in payloads:
-                        img = throughput_pairs_imgs.get(payload)
-                        if not img:
+                        img_log = throughput_pairs_imgs.get(payload)
+                        img_linear = throughput_pairs_imgs_linear.get(payload) if 'throughput_pairs_imgs_linear' in locals() else None
+                        if not img_log and not img_linear:
                             continue
                         f.write(f"### payload={payload}B\n\n")
-                        f.write(f"![throughput vs pairs payload {payload}]({img})\n\n")
+                        if img_log:
+                            f.write(f"**Log Scale:**\n\n")
+                            f.write(f"![throughput vs pairs payload {payload} log]({img_log})\n\n")
+                        if img_linear:
+                            f.write(f"**Linear Scale:**\n\n")
+                            f.write(f"![throughput vs pairs payload {payload} linear]({img_linear})\n\n")
             except Exception:
                 pass
 
@@ -822,6 +939,31 @@ def main() -> int:
                             continue
                         f.write(f"### payload={payload}B\n\n")
                         f.write(f"![mem vs pairs payload {payload}]({img})\n\n")
+            except Exception:
+                pass
+
+            # Insert Avg CPU/Memory vs Pairs section if generated
+            try:
+                if 'avg_cpu_pairs_imgs' in locals() and avg_cpu_pairs_imgs:
+                    f.write("## Avg CPU% vs Pairs\n\n")
+                    for payload in payloads:
+                        img = avg_cpu_pairs_imgs.get(payload)
+                        if not img:
+                            continue
+                        f.write(f"### payload={payload}B\n\n")
+                        f.write(f"![avg cpu vs pairs payload {payload}]({img})\n\n")
+            except Exception:
+                pass
+
+            try:
+                if 'avg_mem_pairs_imgs' in locals() and avg_mem_pairs_imgs:
+                    f.write("## Avg Memory% vs Pairs\n\n")
+                    for payload in payloads:
+                        img = avg_mem_pairs_imgs.get(payload)
+                        if not img:
+                            continue
+                        f.write(f"### payload={payload}B\n\n")
+                        f.write(f"![avg mem vs pairs payload {payload}]({img})\n\n")
             except Exception:
                 pass
 

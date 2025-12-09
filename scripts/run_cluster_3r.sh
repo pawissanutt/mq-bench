@@ -3,14 +3,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/lib.sh"
 
-# 3-router star scenario: sub on router2 (7448), pub on router3 (7449)
+# Single router scenario: sub and pub on router1 (7447)
 # Usage: scripts/run_cluster_3r.sh [RUN_ID]
 
 RUN_ID=${1:-${RUN_ID:-run_$(date +%Y%m%d_%H%M%S)}}
 ART_DIR="artifacts/${RUN_ID}/cluster_3r"
 BIN="./target/release/mq-bench"
-SUB_ENDPOINT="${SUB_ENDPOINT:-tcp/127.0.0.1:7448}"
-PUB_ENDPOINT="${PUB_ENDPOINT:-tcp/127.0.0.1:7449}"
+SUB_ENDPOINT="${SUB_ENDPOINT:-tcp/127.0.0.1:7447}"
+PUB_ENDPOINT="${PUB_ENDPOINT:-tcp/127.0.0.1:7447}"
 KEY="${KEY:-bench/topic}"
 def PAYLOAD "${PAYLOAD:-1024}"
 def RATE     "${RATE:-10000}"

@@ -9,8 +9,8 @@ services:
       - ./config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
     ulimits:
       nofile:
-        soft: 65535
-        hard: 65535
+        soft: 300000
+        hard: 300000
   emqx:
     image: emqx:5.8
     container_name: emqx
@@ -24,8 +24,8 @@ services:
       - EMQX_MQTT__MAX_PACKET_SIZE=10MB
     ulimits:
       nofile:
-        soft: 65535
-        hard: 65535
+        soft: 300000
+        hard: 300000
   hivemq:
     image: hivemq/hivemq-ce:latest
     container_name: hivemq
@@ -34,8 +34,8 @@ services:
       - "8081:8080"   # Dashboard (optional)
     ulimits:
       nofile:
-        soft: 65535
-        hard: 65535
+        soft: 300000
+        hard: 300000
   rabbitmq:
     image: rabbitmq:4-management
     container_name: rabbitmq
@@ -49,8 +49,8 @@ services:
       - "1886:1883"   # MQTT plugin (host port 1886 to avoid clashing with other brokers)
     ulimits:
       nofile:
-        soft: 65535
-        hard: 65535
+        soft: 300000
+        hard: 300000
   artemis:
     image: apache/activemq-artemis:latest-alpine
     container_name: artemis
@@ -65,8 +65,8 @@ services:
       - "8161:8161"   # Web console
     ulimits:
       nofile:
-        soft: 65535
-        hard: 65535
+        soft: 300000
+        hard: 300000
   nats:
     image: nats:2
     container_name: nats
@@ -77,8 +77,8 @@ services:
       - ./config/nats.conf:/etc/nats/nats.conf:ro
     ulimits:
       nofile:
-        soft: 65535
-        hard: 65535
+        soft: 300000
+        hard: 300000
   redis:
     image: redis:7-alpine
     container_name: redis
@@ -87,8 +87,8 @@ services:
     command: ["redis-server", "--save", "", "--appendonly", "no"]
     ulimits:
       nofile:
-        soft: 65535
-        hard: 65535
+        soft: 300000
+        hard: 300000
 
   router1:
     image: eclipse/zenoh-bridge-mqtt:1.6.2
@@ -103,8 +103,8 @@ services:
       RUST_LOG: info
     ulimits:
       nofile:
-        soft: 65535
-        hard: 65535
+        soft: 300000
+        hard: 300000
 
   # router2:
   #   image: eclipse/zenoh-bridge-mqtt:1.6.1
