@@ -165,6 +165,8 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
             let pub_handle = transport.create_publisher(&key).await.map_err(|e| {
                 anyhow::Error::msg(format!("create_publisher error ({}): {}", key, e))
             })?;
+            // Track connection created
+            stats.increment_connections();
             pub_handles.push(pub_handle);
         }
 
@@ -195,12 +197,14 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
                 let stats_p = stats.clone();
                 let payload_size = config.payload_size;
                 let stop_flag = stop.clone();
+                let shard_size = shard_pubs.len();
                 
                 handles.push(tokio::spawn(async move {
                     let mut rc = RateController::new(rate_per_shard);
                     let mut seq = 0u64;
                     let mut pub_idx = 0;
                     let num_pubs = shard_pubs.len();
+                    let mut is_active = false;
                     
                     loop {
                         if stop_flag.load(Ordering::Relaxed) {
@@ -215,6 +219,13 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
                         if let Some(ph) = shard_pubs.get(pub_idx) {
                             match ph.publish(bytes).await {
                                 Ok(_) => {
+                                    if !is_active {
+                                        // Activate all connections in this shard on first successful publish
+                                        for _ in 0..shard_size {
+                                            stats_p.increment_active_connections();
+                                        }
+                                        is_active = true;
+                                    }
                                     stats_p.record_sent().await;
                                 }
                                 Err(e) => {
@@ -230,6 +241,16 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
                         pub_idx = (pub_idx + 1) % num_pubs;
                     }
                     
+                    // Track connection shutdown for all pubs in shard
+                    if is_active {
+                        for _ in 0..shard_size {
+                            stats_p.decrement_active_connections();
+                        }
+                    }
+                    for _ in 0..shard_size {
+                        stats_p.decrement_connections();
+                    }
+                    
                     for ph in shard_pubs {
                         let _ = ph.shutdown().await;
                     }
@@ -237,12 +258,13 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
             }
         } else {
             // No rate limit: spawn per-publisher tasks for max throughput
-            for (i, pub_handle) in pub_handles.into_iter().enumerate() {
+            for (_i, pub_handle) in pub_handles.into_iter().enumerate() {
                 let stats_p = stats.clone();
                 let payload_size = config.payload_size;
                 let stop_flag = stop.clone();
                 handles.push(tokio::spawn(async move {
                     let mut seq = 0u64;
+                    let mut is_active = false;
                     loop {
                         if stop_flag.load(Ordering::Relaxed) {
                             break;
@@ -252,14 +274,23 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
                         let bytes = Bytes::from(payload);
                         match pub_handle.publish(bytes).await {
                             Ok(_) => {
+                                if !is_active {
+                                    stats_p.increment_active_connections();
+                                    is_active = true;
+                                }
                                 stats_p.record_sent().await;
                                 seq = seq.wrapping_add(1);
                             }
-                            Err(e) => {
+                            Err(_e) => {
                                 stats_p.record_error().await;
                             }
                         }
                     }
+                    // Track connection shutdown
+                    if is_active {
+                        stats_p.decrement_active_connections();
+                    }
+                    stats_p.decrement_connections();
                     let _ = pub_handle.shutdown().await;
                 }));
             }
@@ -319,6 +350,8 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
             let pub_handle = transport.create_publisher(&key).await.map_err(|e| {
                 anyhow::Error::msg(format!("create_publisher error ({}): {}", key, e))
             })?;
+            // Track connection created
+            stats.increment_connections();
             let stats_p = stats.clone();
             let rate = config.rate_per_pub;
             let payload_size = config.payload_size;
@@ -326,6 +359,7 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
             handles.push(tokio::spawn(async move {
                 let mut rc = rate.map(RateController::new);
                 let mut seq = 0u64;
+                let mut is_active = false;
                 loop {
                     if stop_flag.load(Ordering::Relaxed) {
                         break;
@@ -337,6 +371,10 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
                     let bytes = Bytes::from(payload);
                     match pub_handle.publish(bytes).await {
                         Ok(_) => {
+                            if !is_active {
+                                stats_p.increment_active_connections();
+                                is_active = true;
+                            }
                             stats_p.record_sent().await;
                             seq = seq.wrapping_add(1);
                         }
@@ -346,6 +384,11 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
                         }
                     }
                 }
+                // Track connection shutdown
+                if is_active {
+                    stats_p.decrement_active_connections();
+                }
+                stats_p.decrement_connections();
                 let _ = pub_handle.shutdown().await;
                 let _ = transport.shutdown().await;
             }));
@@ -498,7 +541,7 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
             TransportBuilder::connect(config.engine.clone(), config.connect.clone())
                 .await
                 .map_err(|e| anyhow::Error::msg(format!("transport connect error: {}", e)))?;
-        let mut subs_vec: Vec<Box<dyn crate::transport::Subscription>> =
+        let mut subs_vec: Vec<(Box<dyn crate::transport::Subscription>, Arc<AtomicBool>)> =
             Vec::with_capacity(subs as usize);
         for i in 0..subs {
             let (t, r, s, k) = map_index(
@@ -511,6 +554,9 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
             );
             let key = format!("{}/t{}/r{}/svc{}/k{}", config.topic_prefix, t, r, s, k);
             let handler_tx = tx.clone();
+            let stats_cb = stats.clone();
+            let first_received = Arc::new(AtomicBool::new(false));
+            let first_received_cb = first_received.clone();
             let sub = transport
                 .subscribe(
                     &key,
@@ -521,19 +567,30 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
                             hdr.copy_from_slice(&bytes[..24]);
                             let recv = now_unix_ns_estimate();
                             let _ = handler_tx.try_send((recv, hdr));
+                            // Track first receive for active connection
+                            if !first_received_cb.swap(true, Ordering::Relaxed) {
+                                stats_cb.increment_active_connections();
+                            }
                         }
                     }),
                 )
                 .await
                 .map_err(|e| anyhow::Error::msg(format!("subscribe error on {}: {}", key, e)))?;
-            subs_vec.push(sub);
+            // Track connection created
+            stats.increment_connections();
+            subs_vec.push((sub, first_received));
         }
         tokio::select! {
             _ = tokio::time::sleep(Duration::from_secs(config.duration_secs)) => {},
             _ = tokio::signal::ctrl_c() => {},
         }
-        for s in &subs_vec {
+        for (s, first_received) in &subs_vec {
             let _ = s.shutdown().await;
+            // Track connection shutdown
+            if first_received.load(Ordering::Relaxed) {
+                stats.decrement_active_connections();
+            }
+            stats.decrement_connections();
         }
         transport
             .shutdown()
@@ -563,7 +620,7 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
     println!("[multi_topic_sub] using per-key transports (ramp_up={}s, delay_per_conn={}us)", 
         config.ramp_up_secs, ramp_delay_us);
     // Hold both the subscription and its own transport to keep the client alive
-    let mut clients: Vec<(Box<dyn crate::transport::Subscription>, Box<dyn Transport>)> =
+    let mut clients: Vec<(Box<dyn crate::transport::Subscription>, Box<dyn Transport>, Arc<AtomicBool>)> =
         Vec::with_capacity(subs as usize);
     for i in 0..subs {
         // Apply ramp-up delay between connections (skip first)
@@ -580,6 +637,9 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
         );
         let key = format!("{}/t{}/r{}/svc{}/k{}", config.topic_prefix, t, r, s, k);
         let handler_tx = tx.clone();
+        let stats_cb = stats.clone();
+        let first_received = Arc::new(AtomicBool::new(false));
+        let first_received_cb = first_received.clone();
         let transport: Box<dyn Transport> =
             TransportBuilder::connect(config.engine.clone(), config.connect.clone())
                 .await
@@ -596,12 +656,18 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
                         hdr.copy_from_slice(&bytes[..24]);
                         let recv = now_unix_ns_estimate();
                         let _ = handler_tx.try_send((recv, hdr));
+                        // Track first receive for active connection
+                        if !first_received_cb.swap(true, Ordering::Relaxed) {
+                            stats_cb.increment_active_connections();
+                        }
                     }
                 }),
             )
             .await
             .map_err(|e| anyhow::Error::msg(format!("subscribe error on {}: {}", key, e)))?;
-        clients.push((sub, transport));
+        // Track connection created
+        stats.increment_connections();
+        clients.push((sub, transport, first_received));
     }
 
     // Wait for either duration or Ctrl+C
@@ -611,9 +677,14 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
     }
 
     // Clean up subscriptions and transports
-    for (sub, trans) in &clients {
+    for (sub, trans, first_received) in &clients {
         let _ = sub.shutdown().await;
         let _ = trans.shutdown().await;
+        // Track connection shutdown
+        if first_received.load(Ordering::Relaxed) {
+            stats.decrement_active_connections();
+        }
+        stats.decrement_connections();
     }
     if let Some(h) = snapshot_handle {
         h.abort();

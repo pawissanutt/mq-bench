@@ -107,6 +107,8 @@ def load_records(csv_path: str):
                     "avg_cpu": float(r.get("avg_cpu_perc", "") or float("nan")),
                     "avg_mem_perc": float(r.get("avg_mem_perc", "") or float("nan")),
                     "avg_mem_bytes": float(r.get("avg_mem_used_bytes", "") or float("nan")),
+                    "connections": int(r.get("connections", "") or 0),
+                    "active_connections": int(r.get("active_connections", "") or 0),
                     "run_id": r.get("run_id", ""),
                 }
                 # Extract pairs 'n<NNN>' from run_id if present

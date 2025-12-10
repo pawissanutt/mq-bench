@@ -211,17 +211,17 @@ parse_and_append_summary() {
   if [[ -z "${last_sub}" ]]; then
     log "WARN: Empty sub.csv for ${run_id}"; return 0
   fi
-  # Expect: ts,sent,recv,errors,tps,itps,p50,p95,p99,min,max,mean
-  local _ts _sent recv _err tps _it p50 p95 p99 _min _max _mean
-  IFS=, read -r _ts _sent recv _err tps _it p50 p95 p99 _min _max _mean <<<"${last_sub}"
+  # Expect: ts,sent,recv,errors,tps,itps,p50,p95,p99,min,max,mean,connections,active_connections
+  local _ts _sent recv _err tps _it p50 p95 p99 _min _max _mean _conns _active
+  IFS=, read -r _ts _sent recv _err tps _it p50 p95 p99 _min _max _mean _conns _active <<<"${last_sub}"
   # Publisher total tps (optional)
   local pub_tps sent
   pub_tps=""
   sent="${_sent}"
   if [[ -n "${last_pub}" ]]; then
-    # pub: ts,sent,recv,errors,tt,it, ...
-    local _pts psent _prev _perr ptt _pit _a _b _c _d _e _f
-    IFS=, read -r _pts psent _prev _perr ptt _pit _a _b _c _d _e _f <<<"${last_pub}"
+    # pub: ts,sent,recv,errors,tt,it,...,connections,active_connections
+    local _pts psent _prev _perr ptt _pit _a _b _c _d _e _f _pconns _pactive
+    IFS=, read -r _pts psent _prev _perr ptt _pit _a _b _c _d _e _f _pconns _pactive <<<"${last_pub}"
     pub_tps="${ptt}"
     sent="${psent}"
   fi
