@@ -16,6 +16,8 @@ pub struct Stats {
     // Connection counters
     pub connections: AtomicU64,
     pub active_connections: AtomicU64,
+    pub connection_attempts: AtomicU64,
+    pub connection_failures: AtomicU64,
 
     // Timing
     start_time: Instant,
@@ -41,6 +43,8 @@ impl Stats {
             error_count: AtomicU64::new(0),
             connections: AtomicU64::new(0),
             active_connections: AtomicU64::new(0),
+            connection_attempts: AtomicU64::new(0),
+            connection_failures: AtomicU64::new(0),
             start_time: now,
             last_snapshot: RwLock::new(now),
             last_sent_count: RwLock::new(0),
@@ -97,6 +101,16 @@ impl Stats {
         self.active_connections.fetch_sub(1, Ordering::Relaxed);
     }
 
+    /// Record a connection attempt
+    pub fn record_connection_attempt(&self) {
+        self.connection_attempts.fetch_add(1, Ordering::Relaxed);
+    }
+
+    /// Record a connection failure
+    pub fn record_connection_failure(&self) {
+        self.connection_failures.fetch_add(1, Ordering::Relaxed);
+    }
+
     /// Record a batch of received latencies with minimal locking
     pub async fn record_received_batch(&self, latencies_ns: &[u64]) {
         if latencies_ns.is_empty() {
@@ -127,6 +141,8 @@ impl Stats {
         let errors = self.error_count.load(Ordering::Relaxed);
         let conns = self.connections.load(Ordering::Relaxed);
         let active_conns = self.active_connections.load(Ordering::Relaxed);
+        let conn_attempts = self.connection_attempts.load(Ordering::Relaxed);
+        let conn_failures = self.connection_failures.load(Ordering::Relaxed);
 
         let hist = self.latency_hist.read().await;
         let p50 = hist.value_at_quantile(0.5);
@@ -191,6 +207,8 @@ impl Stats {
             latency_ns_mean: mean,
             connections: conns,
             active_connections: active_conns,
+            connection_attempts: conn_attempts,
+            connection_failures: conn_failures,
         }
     }
 
@@ -202,6 +220,8 @@ impl Stats {
         self.error_count.store(0, Ordering::Relaxed);
         self.connections.store(0, Ordering::Relaxed);
         self.active_connections.store(0, Ordering::Relaxed);
+        self.connection_attempts.store(0, Ordering::Relaxed);
+        self.connection_failures.store(0, Ordering::Relaxed);
         self.latency_hist.write().await.reset();
         *self.last_snapshot.write().await = Instant::now();
     }
@@ -227,6 +247,8 @@ pub struct StatsSnapshot {
     pub latency_ns_mean: f64,
     pub connections: u64,
     pub active_connections: u64,
+    pub connection_attempts: u64,
+    pub connection_failures: u64,
 }
 
 impl StatsSnapshot {
@@ -275,7 +297,7 @@ impl StatsSnapshot {
     /// Convert to CSV row
     pub fn to_csv_row(&self) -> String {
         format!(
-            "{},{},{},{},{:.2},{:.2},{},{},{},{},{},{:.2},{},{}",
+            "{},{},{},{},{:.2},{:.2},{},{},{},{},{},{:.2},{},{},{},{}",
             self.timestamp,
             self.sent_count,
             self.received_count,
@@ -289,13 +311,15 @@ impl StatsSnapshot {
             self.latency_ns_max,
             self.latency_ns_mean,
             self.connections,
-            self.active_connections
+            self.active_connections,
+            self.connection_attempts,
+            self.connection_failures
         )
     }
 
     /// CSV header
     pub fn csv_header() -> &'static str {
-        "timestamp,sent_count,received_count,error_count,total_throughput,interval_throughput,latency_ns_p50,latency_ns_p95,latency_ns_p99,latency_ns_min,latency_ns_max,latency_ns_mean,connections,active_connections"
+        "timestamp,sent_count,received_count,error_count,total_throughput,interval_throughput,latency_ns_p50,latency_ns_p95,latency_ns_p99,latency_ns_min,latency_ns_max,latency_ns_mean,connections,active_connections,connection_attempts,connection_failures"
     }
 }
 

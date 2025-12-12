@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::signal;
 use tokio::time::interval;
+use tracing::{debug, error, info, warn};
 
 pub struct SubscriberConfig {
     pub engine: Engine,
@@ -24,24 +25,37 @@ pub struct SubscriberConfig {
 }
 
 pub async fn run_subscriber(config: SubscriberConfig) -> Result<()> {
-    println!("Starting subscriber:");
-    if let Some(ep) = config.connect.params.get("endpoint") {
-        println!("  Endpoint: {}", ep);
-    }
-    println!("  Engine: {:?}", config.engine);
-    println!("  Key: {}", config.key_expr);
-    // Initialize Transport (Zenoh engine by default)
-    let transport = TransportBuilder::connect(config.engine.clone(), config.connect.clone())
-        .await
-        .map_err(|e| anyhow::Error::msg(format!("transport connect error: {}", e)))?;
-    println!("Connected via transport: {:?}", config.engine);
+    info!(
+        engine = ?config.engine,
+        key = %config.key_expr,
+        endpoint = ?config.connect.params.get("endpoint"),
+        "Starting subscriber"
+    );
 
-    // Initialize statistics (use shared if provided)
+    // Initialize statistics early (use shared if provided)
     let stats = if let Some(s) = &config.shared_stats {
         s.clone()
     } else {
         Arc::new(Stats::new())
     };
+
+    // Initialize Transport with optional retry
+    stats.record_connection_attempt();
+    let transport = match TransportBuilder::connect_with_retry(
+        config.engine.clone(),
+        config.connect.clone(),
+    )
+    .await
+    {
+        Ok(t) => t,
+        Err(e) => {
+            warn!(error = %e, "Transport connect error");
+            stats.record_connection_failure();
+            // Return gracefully - the stats will reflect the failure
+            return Ok(());
+        }
+    };
+    info!(engine = ?config.engine, "Connected via transport");
 
     // Setup output writer (only when not aggregated/external)
     let mut output = if let Some(ref path) = config.output_file {
@@ -65,12 +79,12 @@ pub async fn run_subscriber(config: SubscriberConfig) -> Result<()> {
                 if let Some(ref mut o) = out {
                     let _ = o.write_snapshot(&snapshot).await;
                 } else {
-                    println!(
-                        "Subscriber stats - Received: {}, Errors: {}, Rate: {:.2} msg/s, P99 Latency: {:.2}ms",
-                        snapshot.received_count,
-                        snapshot.error_count,
-                        snapshot.interval_throughput(),
-                        snapshot.latency_ns_p99 as f64 / 1_000_000.0
+                    debug!(
+                        received = snapshot.received_count,
+                        errors = snapshot.error_count,
+                        rate = format!("{:.2}", snapshot.interval_throughput()),
+                        p99_ms = format!("{:.2}", snapshot.latency_ns_p99 as f64 / 1_000_000.0),
+                        "Subscriber stats"
                     );
                 }
             }
@@ -128,7 +142,7 @@ pub async fn run_subscriber(config: SubscriberConfig) -> Result<()> {
         )
         .await
         .map_err(|e| anyhow::Error::msg(format!("subscribe error: {}", e)))?;
-    println!("Subscribed to key expression: {}", config.key_expr);
+    info!(key = %config.key_expr, "Subscribed to key expression");
 
     // Wait for Ctrl+C or optional test timeout; callbacks will keep updating stats
     if let Some(s) = config.test_stop_after_secs {
@@ -139,32 +153,19 @@ pub async fn run_subscriber(config: SubscriberConfig) -> Result<()> {
     } else {
         signal::ctrl_c().await?;
     }
-    println!("Ctrl+C received, stopping subscriber");
+    info!("Ctrl+C received, stopping subscriber");
 
     // Final statistics
     let final_stats = stats.snapshot().await;
-    println!("\nFinal Subscriber Statistics:");
-    println!("  Messages received: {}", final_stats.received_count);
-    println!("  Errors: {}", final_stats.error_count);
-    println!(
-        "  Average rate: {:.2} msg/s",
-        final_stats.total_throughput()
-    );
-    println!(
-        "  Latency P50: {:.2}ms",
-        final_stats.latency_ns_p50 as f64 / 1_000_000.0
-    );
-    println!(
-        "  Latency P95: {:.2}ms",
-        final_stats.latency_ns_p95 as f64 / 1_000_000.0
-    );
-    println!(
-        "  Latency P99: {:.2}ms",
-        final_stats.latency_ns_p99 as f64 / 1_000_000.0
-    );
-    println!(
-        "  Total duration: {:.2}s",
-        final_stats.total_duration.as_secs_f64()
+    info!(
+        received = final_stats.received_count,
+        errors = final_stats.error_count,
+        avg_rate = format!("{:.2}", final_stats.total_throughput()),
+        p50_ms = format!("{:.2}", final_stats.latency_ns_p50 as f64 / 1_000_000.0),
+        p95_ms = format!("{:.2}", final_stats.latency_ns_p95 as f64 / 1_000_000.0),
+        p99_ms = format!("{:.2}", final_stats.latency_ns_p99 as f64 / 1_000_000.0),
+        duration = format!("{:.2}s", final_stats.total_duration.as_secs_f64()),
+        "Final Subscriber Statistics"
     );
 
     // Write final snapshot to output

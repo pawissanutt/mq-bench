@@ -89,6 +89,18 @@ enum Commands {
         /// Optional CSV output file path (stdout if omitted)
         #[arg(long)]
         csv: Option<String>,
+
+        /// Enable connection retry with exponential backoff
+        #[arg(long, default_value = "false")]
+        enable_retry: bool,
+
+        /// Maximum number of connection retry attempts
+        #[arg(long, default_value = "3")]
+        retry_count: u32,
+
+        /// Initial delay between retries in milliseconds
+        #[arg(long, default_value = "1000")]
+        retry_delay: u64,
     },
     /// Multi-topic publisher (single process, many keys)
     #[command(name = "mt-pub")]
@@ -150,6 +162,18 @@ enum Commands {
         /// Optional CSV output file path (stdout if omitted)
         #[arg(long)]
         csv: Option<String>,
+
+        /// Enable connection retry with exponential backoff
+        #[arg(long, default_value = "false")]
+        enable_retry: bool,
+
+        /// Maximum number of connection retry attempts
+        #[arg(long, default_value = "3")]
+        retry_count: u32,
+
+        /// Initial delay between retries in milliseconds
+        #[arg(long, default_value = "1000")]
+        retry_delay: u64,
     },
     /// Multi-topic subscriber: spawn many per-key subscriptions
     #[command(name = "mt-sub")]
@@ -203,6 +227,18 @@ enum Commands {
         /// Optional CSV output file path (stdout if omitted)
         #[arg(long)]
         csv: Option<String>,
+
+        /// Enable connection retry with exponential backoff
+        #[arg(long, default_value = "false")]
+        enable_retry: bool,
+
+        /// Maximum number of connection retry attempts
+        #[arg(long, default_value = "3")]
+        retry_count: u32,
+
+        /// Initial delay between retries in milliseconds
+        #[arg(long, default_value = "1000")]
+        retry_delay: u64,
     },
     /// Subscriber role
     Sub {
@@ -233,6 +269,18 @@ enum Commands {
         /// Optional CSV output file path (stdout if omitted)
         #[arg(long)]
         csv: Option<String>,
+
+        /// Enable connection retry with exponential backoff
+        #[arg(long, default_value = "false")]
+        enable_retry: bool,
+
+        /// Maximum number of connection retry attempts
+        #[arg(long, default_value = "3")]
+        retry_count: u32,
+
+        /// Initial delay between retries in milliseconds
+        #[arg(long, default_value = "1000")]
+        retry_delay: u64,
     },
     /// Requester role
     Req {
@@ -271,6 +319,18 @@ enum Commands {
         /// Optional CSV output file path (stdout if omitted)
         #[arg(long)]
         csv: Option<String>,
+
+        /// Enable connection retry with exponential backoff
+        #[arg(long, default_value = "false")]
+        enable_retry: bool,
+
+        /// Maximum number of connection retry attempts
+        #[arg(long, default_value = "3")]
+        retry_count: u32,
+
+        /// Initial delay between retries in milliseconds
+        #[arg(long, default_value = "1000")]
+        retry_delay: u64,
     },
     /// Queryable role
     Qry {
@@ -305,6 +365,18 @@ enum Commands {
         /// Optional CSV output file path (stdout if omitted)
         #[arg(long)]
         csv: Option<String>,
+
+        /// Enable connection retry with exponential backoff
+        #[arg(long, default_value = "false")]
+        enable_retry: bool,
+
+        /// Maximum number of connection retry attempts
+        #[arg(long, default_value = "3")]
+        retry_count: u32,
+
+        /// Initial delay between retries in milliseconds
+        #[arg(long, default_value = "1000")]
+        retry_delay: u64,
     },
 }
 
@@ -341,6 +413,9 @@ async fn main() -> Result<()> {
             qos,
             csv,
             share_transport: _,
+            enable_retry,
+            retry_count,
+            retry_delay,
         } => {
             // Parse engine and connect opts (support legacy --endpoint)
             let engine = parse_engine(&engine).unwrap_or(Engine::Zenoh);
@@ -350,6 +425,11 @@ async fn main() -> Result<()> {
                     conn.params.insert("endpoint".into(), ep.clone());
                 }
             }
+            // Wire retry options
+            conn.retry_enabled = enable_retry;
+            conn.retry_count = retry_count;
+            conn.retry_delay_ms = retry_delay;
+            conn.retry_max_delay_ms = 30000; // 30s max delay
             // Inject QoS into connect params if not already provided
             conn.params
                 .entry("qos".into())
@@ -439,6 +519,9 @@ async fn main() -> Result<()> {
             share_transport,
             ramp_up_secs,
             csv,
+            enable_retry,
+            retry_count,
+            retry_delay,
         } => {
             let engine = parse_engine(&engine).unwrap_or(Engine::Zenoh);
             let mut conn = parse_connect_kv(&connect);
@@ -447,6 +530,11 @@ async fn main() -> Result<()> {
                     conn.params.insert("endpoint".into(), ep.clone());
                 }
             }
+            // Wire retry options
+            conn.retry_enabled = enable_retry;
+            conn.retry_count = retry_count;
+            conn.retry_delay_ms = retry_delay;
+            conn.retry_max_delay_ms = 30000;
             let mapping = match mapping.as_str() {
                 "mdim" => KeyMappingMode::MDim,
                 _ => KeyMappingMode::Hash,
@@ -527,6 +615,9 @@ async fn main() -> Result<()> {
             share_transport,
             ramp_up_secs,
             csv,
+            enable_retry,
+            retry_count,
+            retry_delay,
         } => {
             let engine = parse_engine(&engine).unwrap_or(Engine::Zenoh);
             let mut conn = parse_connect_kv(&connect);
@@ -535,6 +626,11 @@ async fn main() -> Result<()> {
                     conn.params.insert("endpoint".into(), ep.clone());
                 }
             }
+            // Wire retry options
+            conn.retry_enabled = enable_retry;
+            conn.retry_count = retry_count;
+            conn.retry_delay_ms = retry_delay;
+            conn.retry_max_delay_ms = 30000;
             let mapping = match mapping.as_str() {
                 "mdim" => KeyMappingMode::MDim,
                 _ => KeyMappingMode::Hash,
@@ -603,6 +699,9 @@ async fn main() -> Result<()> {
             subscribers,
             qos,
             csv,
+            enable_retry,
+            retry_count,
+            retry_delay,
         } => {
             let engine = parse_engine(&engine).unwrap_or(Engine::Zenoh);
             let mut conn = parse_connect_kv(&connect);
@@ -611,6 +710,11 @@ async fn main() -> Result<()> {
                     conn.params.insert("endpoint".into(), ep.clone());
                 }
             }
+            // Wire retry options
+            conn.retry_enabled = enable_retry;
+            conn.retry_count = retry_count;
+            conn.retry_delay_ms = retry_delay;
+            conn.retry_max_delay_ms = 30000;
             // Inject QoS into connect params if not already provided
             conn.params
                 .entry("qos".into())
@@ -680,6 +784,9 @@ async fn main() -> Result<()> {
             timeout,
             duration,
             csv,
+            enable_retry,
+            retry_count,
+            retry_delay,
         } => {
             let engine = parse_engine(&engine).unwrap_or(Engine::Zenoh);
             let mut conn = parse_connect_kv(&connect);
@@ -688,6 +795,11 @@ async fn main() -> Result<()> {
                     conn.params.insert("endpoint".into(), ep.clone());
                 }
             }
+            // Wire retry options
+            conn.retry_enabled = enable_retry;
+            conn.retry_count = retry_count;
+            conn.retry_delay_ms = retry_delay;
+            conn.retry_max_delay_ms = 30000;
             // Externalize snapshotting even for single requester
             let shared_stats: Option<Arc<Stats>> = Some(Arc::new(Stats::new()));
             let mut agg_output = if let Some(ref path) = csv {
@@ -753,6 +865,9 @@ async fn main() -> Result<()> {
             proc_delay,
             qos,
             csv,
+            enable_retry,
+            retry_count,
+            retry_delay,
         } => {
             let engine = parse_engine(&engine).unwrap_or(Engine::Zenoh);
             let mut conn = parse_connect_kv(&connect);
@@ -761,6 +876,11 @@ async fn main() -> Result<()> {
                     conn.params.insert("endpoint".into(), ep.clone());
                 }
             }
+            // Wire retry options
+            conn.retry_enabled = enable_retry;
+            conn.retry_count = retry_count;
+            conn.retry_delay_ms = retry_delay;
+            conn.retry_max_delay_ms = 30000;
             // Inject QoS into connect params if not already provided
             conn.params
                 .entry("qos".into())

@@ -9,6 +9,7 @@ use std::sync::Arc;
 use std::time::Duration;
 use tokio::signal;
 use tokio::time::interval;
+use tracing::{debug, error, info, warn};
 
 pub struct PublisherConfig {
     pub engine: Engine,
@@ -25,41 +26,51 @@ pub struct PublisherConfig {
 }
 
 pub async fn run_publisher(config: PublisherConfig) -> Result<()> {
-    println!("Starting publisher:");
-    if let Some(ep) = config.connect.params.get("endpoint") {
-        println!("  Endpoint: {}", ep);
-    }
-    println!("  Engine: {:?}", config.engine);
-    println!("  Key: {}", config.key_expr);
-    println!("  Payload size: {} bytes", config.payload_size);
-    if let Some(r) = config.rate {
-        println!("  Rate: {:.2} msg/s", r);
-    } else {
-        println!("  Rate: unlimited (no delay)");
-    }
-    if let Some(duration) = config.duration_secs {
-        println!("  Duration: {} seconds", duration);
-    } else {
-        println!("  Duration: unlimited (until Ctrl+C)");
-    }
-    // Initialize Transport (generic engine + connect options)
-    let transport: Box<dyn Transport> =
-        TransportBuilder::connect(config.engine.clone(), config.connect.clone())
-            .await
-            .map_err(|e| anyhow::Error::msg(format!("transport connect error: {}", e)))?;
-    println!("Connected via transport: {:?}", config.engine);
-    // Pre-declare publisher for performance
-    let publisher = transport
-        .create_publisher(&config.key_expr)
-        .await
-        .map_err(|e| anyhow::Error::msg(format!("create_publisher error: {}", e)))?;
+    info!(
+        engine = ?config.engine,
+        key = %config.key_expr,
+        payload_size = config.payload_size,
+        rate = ?config.rate,
+        duration_secs = ?config.duration_secs,
+        endpoint = ?config.connect.params.get("endpoint"),
+        "Starting publisher"
+    );
 
-    // Initialize statistics and rate controller
+    // Initialize statistics early so we can track connection failures
     let stats = if let Some(s) = &config.shared_stats {
         s.clone()
     } else {
         Arc::new(Stats::new())
     };
+
+    // Initialize Transport with optional retry (generic engine + connect options)
+    stats.record_connection_attempt();
+    let transport: Box<dyn Transport> = match TransportBuilder::connect_with_retry(
+        config.engine.clone(),
+        config.connect.clone(),
+    )
+    .await
+    {
+        Ok(t) => t,
+        Err(e) => {
+            warn!(error = %e, "Transport connect error");
+            stats.record_connection_failure();
+            // Return gracefully - the stats will reflect the failure
+            return Ok(());
+        }
+    };
+    info!(engine = ?config.engine, "Connected via transport");
+
+    // Pre-declare publisher for performance
+    let publisher = match transport.create_publisher(&config.key_expr).await {
+        Ok(p) => p,
+        Err(e) => {
+            error!(error = %e, "Create publisher error");
+            stats.record_connection_failure();
+            return Ok(());
+        }
+    };
+
     let mut rate_controller = config.rate.map(|r| RateController::new(r));
 
     // Setup output writer (only when not aggregated)
@@ -92,9 +103,12 @@ pub async fn run_publisher(config: PublisherConfig) -> Result<()> {
                 } else {
                     0.0
                 };
-                println!(
-                    "Publisher stats - Sent: {}, Errors: {}, Rate(avg): {:.2} msg/s, Rate(inst): {:.2} msg/s",
-                    snapshot.sent_count, snapshot.error_count, avg_send_rate, inst_send_rate
+                debug!(
+                    sent = snapshot.sent_count,
+                    errors = snapshot.error_count,
+                    avg_rate = format!("{:.2}", avg_send_rate),
+                    inst_rate = format!("{:.2}", inst_send_rate),
+                    "Publisher stats"
                 );
             }
         }))
@@ -111,7 +125,7 @@ pub async fn run_publisher(config: PublisherConfig) -> Result<()> {
             // Check duration limit
             if let Some(duration) = config.duration_secs {
                 if start_time.elapsed().as_secs() >= duration {
-                    println!("Duration limit reached, stopping publisher");
+                    info!("Duration limit reached, stopping publisher");
                     break;
                 }
             }
@@ -131,7 +145,7 @@ pub async fn run_publisher(config: PublisherConfig) -> Result<()> {
                     sequence += 1;
                 }
                 Err(e) => {
-                    eprintln!("Send error: {}", e);
+                    warn!(error = %e, "Send error");
                     stats.record_error().await;
                 }
             }
@@ -141,29 +155,27 @@ pub async fn run_publisher(config: PublisherConfig) -> Result<()> {
     // Wait for either completion or Ctrl+C
     tokio::select! {
         _ = publishing_task => {
-            println!("Publishing completed");
+            info!("Publishing completed");
         }
         _ = signal::ctrl_c() => {
-            println!("Ctrl+C received, stopping publisher");
+            info!("Ctrl+C received, stopping publisher");
         }
     }
 
     // Final statistics
     let final_stats = stats.snapshot().await;
-    println!("\nFinal Publisher Statistics:");
-    println!("  Messages sent: {}", final_stats.sent_count);
-    println!("  Errors: {}", final_stats.error_count);
-    // Show average send rate over the full run
     let total_elapsed = final_stats.total_duration.as_secs_f64();
     let avg_send_rate = if total_elapsed > 0.0 {
         final_stats.sent_count as f64 / total_elapsed
     } else {
         0.0
     };
-    println!("  Average rate: {:.2} msg/s", avg_send_rate);
-    println!(
-        "  Total duration: {:.2}s",
-        final_stats.total_duration.as_secs_f64()
+    info!(
+        sent = final_stats.sent_count,
+        errors = final_stats.error_count,
+        avg_rate = format!("{:.2}", avg_send_rate),
+        duration = format!("{:.2}s", total_elapsed),
+        "Final Publisher Statistics"
     );
 
     // Write final snapshot to output (if not aggregated)

@@ -6,6 +6,7 @@ use std::sync::{
     atomic::{AtomicBool, Ordering},
 };
 use std::time::Duration;
+use tracing::{debug, error, info, warn};
 
 use crate::metrics::stats::Stats;
 use crate::payload::generate_payload;
@@ -91,18 +92,18 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
         (config.publishers as u64).min(total_keys)
     };
 
-    println!(
-        "[multi_topic] engine={:?} prefix={} dims=T{}xR{}xS{}xK{} pubs={} payload={} rate={:?} dur={}s",
-        config.engine,
-        config.topic_prefix,
-        config.tenants,
-        config.regions,
-        config.services,
-        config.shards,
-        pubs,
-        config.payload_size,
-        config.rate_per_pub,
-        config.duration_secs
+    info!(
+        engine = ?config.engine,
+        prefix = %config.topic_prefix,
+        tenants = config.tenants,
+        regions = config.regions,
+        services = config.services,
+        shards = config.shards,
+        pubs = pubs,
+        payload = config.payload_size,
+        rate = ?config.rate_per_pub,
+        duration_secs = config.duration_secs,
+        "[multi_topic] starting"
     );
 
     // Shared vs per-key transport depending on config
@@ -122,11 +123,11 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
             loop {
                 t.tick().await;
                 let s = stats_clone.snapshot().await;
-                println!(
-                    "[multi_topic] sent={} err={} itps={:.2}",
-                    s.sent_count,
-                    s.error_count,
-                    s.interval_throughput()
+                debug!(
+                    sent = s.sent_count,
+                    errors = s.error_count,
+                    interval_tps = %format!("{:.2}", s.interval_throughput()),
+                    "[multi_topic] snapshot"
                 );
             }
         }))
@@ -140,11 +141,21 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
     let mut handles = Vec::with_capacity(pubs as usize);
 
     if config.share_transport {
-        println!("[multi_topic] using shared transport");
-        let transport: Box<dyn Transport> =
-            TransportBuilder::connect(config.engine.clone(), config.connect.clone())
-                .await
-                .map_err(|e| anyhow::Error::msg(format!("transport connect error: {}", e)))?;
+        info!("[multi_topic] using shared transport");
+        stats.record_connection_attempt();
+        let transport: Box<dyn Transport> = match TransportBuilder::connect_with_retry(
+            config.engine.clone(),
+            config.connect.clone(),
+        )
+        .await
+        {
+            Ok(t) => t,
+            Err(e) => {
+                warn!(error = %e, "Transport connect error");
+                stats.record_connection_failure();
+                return Ok(());
+            }
+        };
         
         // Optimization: For high publisher counts (e.g. >1000), spawning one task per publisher
         // with its own RateController (timer) creates massive scheduling overhead.
@@ -178,8 +189,13 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
             let num_shards = 32.min(pubs as usize).max(1);
             let rate_per_shard = total_rate / (num_shards as f64);
             
-            println!("[multi_topic] optimizing: {} driver tasks for {} pubs @ total {:.2} msg/s ({:.2}/shard)", 
-                num_shards, pubs, total_rate, rate_per_shard);
+            info!(
+                num_shards = num_shards,
+                pubs = pubs,
+                total_rate = %format!("{:.2}", total_rate),
+                rate_per_shard = %format!("{:.2}", rate_per_shard),
+                "[multi_topic] optimizing driver tasks"
+            );
             
             // Distribute pub_handles into shards
             let mut pub_iter = pub_handles.into_iter();
@@ -230,7 +246,7 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
                                 }
                                 Err(e) => {
                                     if seq % 1000 == 0 {
-                                        eprintln!("[multi_topic] send error (sample): {}", e);
+                                        warn!(error = %e, "[multi_topic] send error (sample)");
                                     }
                                     stats_p.record_error().await;
                                 }
@@ -311,11 +327,11 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
             h.abort();
         }
         let final_stats = stats.snapshot().await;
-        println!(
-            "[multi_topic] done: sent={} errors={} total_tps={:.2}",
-            final_stats.sent_count,
-            final_stats.error_count,
-            final_stats.total_throughput()
+        info!(
+            sent = final_stats.sent_count,
+            errors = final_stats.error_count,
+            total_tps = format!("{:.2}", final_stats.total_throughput()),
+            "[multi_topic] done"
         );
         return Ok(());
     } else {
@@ -325,8 +341,11 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
         } else {
             0
         };
-        println!("[multi_topic] using per-key transports (ramp_up={}s, delay_per_conn={}us)", 
-            config.ramp_up_secs, ramp_delay_us);
+        info!(
+            ramp_up_secs = config.ramp_up_secs,
+            delay_per_conn_us = ramp_delay_us,
+            "[multi_topic] using per-key transports"
+        );
         for i in 0..pubs {
             // Apply ramp-up delay between connections (skip first)
             if i > 0 && ramp_delay_us > 0 {
@@ -341,15 +360,28 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
                 config.mapping,
             );
             let key = format!("{}/t{}/r{}/svc{}/k{}", config.topic_prefix, t, r, s, k);
-            let transport: Box<dyn Transport> =
-                TransportBuilder::connect(config.engine.clone(), config.connect.clone())
-                    .await
-                    .map_err(|e| {
-                        anyhow::Error::msg(format!("transport connect error ({}): {}", key, e))
-                    })?;
-            let pub_handle = transport.create_publisher(&key).await.map_err(|e| {
-                anyhow::Error::msg(format!("create_publisher error ({}): {}", key, e))
-            })?;
+            stats.record_connection_attempt();
+            let transport: Box<dyn Transport> = match TransportBuilder::connect_with_retry(
+                config.engine.clone(),
+                config.connect.clone(),
+            )
+            .await
+            {
+                Ok(t) => t,
+                Err(e) => {
+                    warn!(key = %key, error = %e, "Transport connect error");
+                    stats.record_connection_failure();
+                    continue; // Skip this publisher but continue with others
+                }
+            };
+            let pub_handle = match transport.create_publisher(&key).await {
+                Ok(p) => p,
+                Err(e) => {
+                    error!(key = %key, error = %e, "Create publisher error");
+                    stats.record_connection_failure();
+                    continue;
+                }
+            };
             // Track connection created
             stats.increment_connections();
             let stats_p = stats.clone();
@@ -379,7 +411,7 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
                             seq = seq.wrapping_add(1);
                         }
                         Err(e) => {
-                            eprintln!("[multi_topic] send error on {}: {}", key, e);
+                            warn!(key = %key, error = %e, "[multi_topic] send error");
                             stats_p.record_error().await;
                         }
                     }
@@ -411,11 +443,11 @@ pub async fn run_multi_topic(config: MultiTopicConfig) -> Result<()> {
 
     // Final stats
     let final_stats = stats.snapshot().await;
-    println!(
-        "[multi_topic] done: sent={} errors={} total_tps={:.2}",
-        final_stats.sent_count,
-        final_stats.error_count,
-        final_stats.total_throughput()
+    info!(
+        sent = final_stats.sent_count,
+        errors = final_stats.error_count,
+        total_tps = format!("{:.2}", final_stats.total_throughput()),
+        "[multi_topic] done"
     );
 
     Ok(())
@@ -456,16 +488,16 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
     } else {
         (config.subscribers as u64).min(total_keys)
     };
-    println!(
-        "[multi_topic_sub] engine={:?} prefix={} dims=T{}xR{}xS{}xK{} subs={} dur={}s",
-        config.engine,
-        config.topic_prefix,
-        config.tenants,
-        config.regions,
-        config.services,
-        config.shards,
-        subs,
-        config.duration_secs
+    info!(
+        engine = ?config.engine,
+        prefix = %config.topic_prefix,
+        tenants = config.tenants,
+        regions = config.regions,
+        services = config.services,
+        shards = config.shards,
+        subs = subs,
+        duration_secs = config.duration_secs,
+        "[multi_topic_sub] starting"
     );
 
     // Note: shared vs per-subscription transport
@@ -485,12 +517,12 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
             loop {
                 t.tick().await;
                 let s = stats_clone.snapshot().await;
-                println!(
-                    "[multi_topic_sub] recv={} err={} itps={:.2} p99={:.2}ms",
-                    s.received_count,
-                    s.error_count,
-                    s.interval_throughput(),
-                    s.latency_ns_p99 as f64 / 1_000_000.0
+                debug!(
+                    recv = s.received_count,
+                    err = s.error_count,
+                    itps = format!("{:.2}", s.total_throughput()),
+                    p99_ms = format!("{:.2}", s.latency_ns_p99 as f64 / 1_000_000.0),
+                    "[multi_topic_sub] snapshot"
                 );
             }
         }))
@@ -536,11 +568,21 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
     // Create per-key subscriptions (subs computed above)
 
     if config.share_transport {
-        println!("[multi_topic_sub] using shared transport");
-        let transport: Box<dyn Transport> =
-            TransportBuilder::connect(config.engine.clone(), config.connect.clone())
-                .await
-                .map_err(|e| anyhow::Error::msg(format!("transport connect error: {}", e)))?;
+        info!("[multi_topic_sub] using shared transport");
+        stats.record_connection_attempt();
+        let transport: Box<dyn Transport> = match TransportBuilder::connect_with_retry(
+            config.engine.clone(),
+            config.connect.clone(),
+        )
+        .await
+        {
+            Ok(t) => t,
+            Err(e) => {
+                warn!(error = %e, "Transport connect error");
+                stats.record_connection_failure();
+                return Ok(());
+            }
+        };
         let mut subs_vec: Vec<(Box<dyn crate::transport::Subscription>, Arc<AtomicBool>)> =
             Vec::with_capacity(subs as usize);
         for i in 0..subs {
@@ -600,12 +642,12 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
             h.abort();
         }
         let s = stats.snapshot().await;
-        println!(
-            "[multi_topic_sub] done: recv={} errors={} total_tps={:.2} p99={:.2}ms",
-            s.received_count,
-            s.error_count,
-            s.total_throughput(),
-            s.latency_ns_p99 as f64 / 1_000_000.0
+        info!(
+            recv = s.received_count,
+            errors = s.error_count,
+            total_tps = format!("{:.2}", s.total_throughput()),
+            p99_ms = format!("{:.2}", s.latency_ns_p99 as f64 / 1_000_000.0),
+            "[multi_topic_sub] done"
         );
         return Ok(());
     }
@@ -617,8 +659,11 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
     } else {
         0
     };
-    println!("[multi_topic_sub] using per-key transports (ramp_up={}s, delay_per_conn={}us)", 
-        config.ramp_up_secs, ramp_delay_us);
+    info!(
+        ramp_up_secs = config.ramp_up_secs,
+        delay_per_conn_us = ramp_delay_us,
+        "[multi_topic_sub] using per-key transports"
+    );
     // Hold both the subscription and its own transport to keep the client alive
     let mut clients: Vec<(Box<dyn crate::transport::Subscription>, Box<dyn Transport>, Arc<AtomicBool>)> =
         Vec::with_capacity(subs as usize);
@@ -640,13 +685,21 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
         let stats_cb = stats.clone();
         let first_received = Arc::new(AtomicBool::new(false));
         let first_received_cb = first_received.clone();
-        let transport: Box<dyn Transport> =
-            TransportBuilder::connect(config.engine.clone(), config.connect.clone())
-                .await
-                .map_err(|e| {
-                    anyhow::Error::msg(format!("transport connect error ({}): {}", key, e))
-                })?;
-        let sub = transport
+        stats.record_connection_attempt();
+        let transport: Box<dyn Transport> = match TransportBuilder::connect_with_retry(
+            config.engine.clone(),
+            config.connect.clone(),
+        )
+        .await
+        {
+            Ok(t) => t,
+            Err(e) => {
+                warn!(key = %key, error = %e, "Transport connect error");
+                stats.record_connection_failure();
+                continue; // Skip this subscriber but continue with others
+            }
+        };
+        let sub = match transport
             .subscribe(
                 &key,
                 Box::new(move |msg: crate::transport::TransportMessage| {
@@ -664,7 +717,14 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
                 }),
             )
             .await
-            .map_err(|e| anyhow::Error::msg(format!("subscribe error on {}: {}", key, e)))?;
+        {
+            Ok(s) => s,
+            Err(e) => {
+                error!(key = %key, error = %e, "Subscribe error");
+                stats.record_connection_failure();
+                continue;
+            }
+        };
         // Track connection created
         stats.increment_connections();
         clients.push((sub, transport, first_received));
@@ -692,12 +752,12 @@ pub async fn run_multi_topic_sub(config: MultiTopicSubConfig) -> Result<()> {
 
     // Final stats
     let s = stats.snapshot().await;
-    println!(
-        "[multi_topic_sub] done: recv={} errors={} total_tps={:.2} p99={:.2}ms",
-        s.received_count,
-        s.error_count,
-        s.total_throughput(),
-        s.latency_ns_p99 as f64 / 1_000_000.0
+    info!(
+        recv = s.received_count,
+        errors = s.error_count,
+        total_tps = format!("{:.2}", s.total_throughput()),
+        p99_ms = format!("{:.2}", s.latency_ns_p99 as f64 / 1_000_000.0),
+        "[multi_topic_sub] done"
     );
 
     Ok(())

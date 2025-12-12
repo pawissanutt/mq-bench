@@ -16,8 +16,8 @@
   // High client count tuning
   transport: {
     unicast: {
-      max_sessions: 10000,      // Max concurrent client sessions
-      accept_pending: 4096r,     // Pending connection queue (increased)
+      max_sessions: 100000,      // Max concurrent client sessions
+      accept_pending: 4096,     // Pending connection queue (increased)
       accept_timeout: 30000,    // Timeout for accepts (ms) - increased
     },
     link: {
