@@ -8,6 +8,7 @@ use mq_bench::roles::multi_topic::{
 };
 use mq_bench::roles::publisher::{PublisherConfig, run_publisher};
 use mq_bench::roles::queryable::{QueryableConfig, run_queryable};
+use mq_bench::roles::reliable_publisher::{ReliablePublisherConfig, run_reliable_publisher};
 use mq_bench::roles::requester::{RequesterConfig, run_requester};
 use mq_bench::roles::subscriber::{SubscriberConfig, run_subscriber};
 use mq_bench::transport::Engine;
@@ -409,6 +410,60 @@ enum Commands {
         /// Initial delay between retries in milliseconds
         #[arg(long, default_value = "1000")]
         retry_delay: u64,
+    },
+    /// Reliable publisher role (MQTT only)
+    /// Waits for broker ACK before considering message confirmed.
+    /// On crash/reconnect, resumes from last confirmed sequence.
+    #[command(name = "rel-pub")]
+    RelPub {
+        /// Engine connect options as KEY=VALUE (repeatable)
+        /// Required: host, port. Optional: qos (default 1), client_id, clean_session
+        #[arg(long, value_parser = clap::builder::NonEmptyStringValueParser::new())]
+        connect: Vec<String>,
+
+        /// Topic to publish to
+        #[arg(long, default_value = "bench/reliable")]
+        topic: String,
+
+        /// Payload size in bytes
+        #[arg(long, default_value = "1024")]
+        payload: u32,
+
+        /// Rate per publisher (msg/s). If omitted or <= 0, runs at max speed
+        #[arg(long, alias = "qps", allow_hyphen_values = true)]
+        rate: Option<i32>,
+
+        /// Duration in seconds
+        #[arg(long, default_value = "60")]
+        duration: u32,
+
+        /// Optional CSV output file path (stdout if omitted)
+        #[arg(long)]
+        csv: Option<String>,
+
+        /// Enable connection retry with exponential backoff
+        #[arg(long, default_value = "true")]
+        enable_retry: bool,
+
+        /// Mean Time To Failure in seconds (0 = disabled)
+        #[arg(long, default_value = "0")]
+        mttf: f64,
+
+        /// Mean Time To Repair in seconds
+        #[arg(long, default_value = "5")]
+        mttr: f64,
+
+        /// Number of crashes to simulate (0 = infinite)
+        #[arg(long, default_value = "0")]
+        crash_count: u32,
+
+        /// RNG seed for reproducible crash patterns
+        #[arg(long)]
+        crash_seed: Option<u64>,
+
+        /// ACK timeout in seconds
+        #[arg(long, default_value = "10")]
+        ack_timeout: u64,
     },
 }
 
@@ -988,6 +1043,60 @@ async fn main() -> Result<()> {
             if let Some(h) = agg_handle {
                 h.abort();
             }
+            Ok(())
+        }
+        Commands::RelPub {
+            connect,
+            topic,
+            payload,
+            rate,
+            duration,
+            csv,
+            enable_retry,
+            mttf,
+            mttr,
+            crash_count,
+            crash_seed,
+            ack_timeout,
+        } => {
+            use mq_bench::crash::CrashConfig;
+
+            let mut conn = parse_connect_kv(&connect);
+            // Default retry enabled for reliable publishing
+            conn.retry_enabled = enable_retry;
+            conn.retry_count = 10; // More retries for reliable publishing
+            conn.retry_delay_ms = 1000;
+            conn.retry_max_delay_ms = 30000;
+
+            // Setup crash config
+            let crash_config = CrashConfig {
+                mttf_secs: mttf,
+                mttr_secs: mttr,
+                crash_count,
+                seed: crash_seed,
+            };
+
+            // Setup output
+            if let Some(ref path) = csv {
+                println!("Writing CSV output to: {}", path);
+            }
+
+            let config = ReliablePublisherConfig {
+                engine: Engine::Mqtt, // Only MQTT supported
+                connect: conn,
+                key_expr: topic,
+                payload_size: payload as usize,
+                rate: rate.filter(|&r| r > 0).map(|r| r as f64),
+                duration_secs: Some(duration as u64),
+                output_file: csv,
+                snapshot_interval_secs,
+                shared_stats: None,
+                disable_internal_snapshot: false,
+                crash_config,
+                ack_timeout_secs: ack_timeout,
+            };
+
+            run_reliable_publisher(config).await?;
             Ok(())
         }
     }

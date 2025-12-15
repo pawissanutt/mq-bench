@@ -233,8 +233,20 @@ pub async fn run_publisher(config: PublisherConfig) -> Result<()> {
             }
         };
 
-        // Shutdown current transport
-        let _ = transport.shutdown().await;
+        // Handle transport cleanup based on crash vs normal exit
+        if crash_triggered {
+            // HARD CRASH: Force disconnect without graceful shutdown
+            // This simulates abrupt failure (network loss, process kill, power loss)
+            // Important for testing QoS guarantees - broker should NOT receive DISCONNECT
+            info!("Simulating hard crash - aborting connection without graceful disconnect");
+            let _ = publisher.force_disconnect().await;
+            // Drop transport and publisher immediately without graceful shutdown
+            drop(publisher);
+            drop(transport);
+        } else {
+            // Normal exit: graceful shutdown
+            let _ = transport.shutdown().await;
+        }
 
         if crash_triggered && config.connect.retry_enabled {
             // Sample repair time and wait before reconnecting

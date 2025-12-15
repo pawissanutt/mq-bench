@@ -80,7 +80,8 @@ impl CrashInjector {
         (self.rng_state as f64) / (u64::MAX as f64)
     }
 
-    /// Sample from exponential distribution with given mean.
+    /// Sample from truncated exponential distribution with given mean.
+    /// Capped at 3x mean to avoid extreme outliers that could exceed test duration.
     fn sample_exponential(&mut self, mean_secs: f64) -> Duration {
         if mean_secs <= 0.0 {
             return Duration::ZERO;
@@ -90,7 +91,10 @@ impl CrashInjector {
         // Avoid ln(0) by clamping
         let u = u.max(1e-10);
         let sample_secs = -mean_secs * u.ln();
-        Duration::from_secs_f64(sample_secs)
+        // Truncate at 3x mean to prevent extreme outliers
+        let max_secs = mean_secs * 3.0;
+        let capped_secs = sample_secs.min(max_secs);
+        Duration::from_secs_f64(capped_secs)
     }
 
     /// Returns true if crash injection is enabled.

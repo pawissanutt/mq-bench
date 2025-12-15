@@ -1,4 +1,5 @@
 use crate::crash::{CrashConfig, CrashInjector};
+use crate::metrics::sequence::SequenceTracker;
 use crate::metrics::stats::Stats;
 use crate::output::OutputWriter;
 use crate::payload::parse_header;
@@ -9,6 +10,7 @@ use flume;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::signal;
+use tokio::sync::Mutex;
 use tokio::time::interval;
 use tracing::{debug, info, warn};
 
@@ -52,15 +54,27 @@ pub async fn run_subscriber(config: SubscriberConfig) -> Result<()> {
         None
     };
 
+    // Shared sequence tracker - wrapped in Arc<Mutex<>> so snapshot task can access stats
+    // This persists across reconnections to track all sequences throughout the test
+    let seq_tracker = Arc::new(Mutex::new(SequenceTracker::new()));
+
     // Start snapshot task (only if not disabled)
     let snapshot_handle = if !config.disable_internal_snapshot {
         let stats_clone = Arc::clone(&stats);
+        let seq_tracker_snap = Arc::clone(&seq_tracker);
         let interval_secs = config.snapshot_interval_secs;
         let mut out = output.take();
         Some(tokio::spawn(async move {
             let mut interval_timer = interval(Duration::from_secs(interval_secs));
             loop {
                 interval_timer.tick().await;
+                // Update stats with current sequence tracker state before snapshot
+                {
+                    let tracker = seq_tracker_snap.lock().await;
+                    stats_clone.set_duplicates(tracker.duplicate_count());
+                    stats_clone.set_gaps(tracker.gap_count());
+                    stats_clone.set_head_loss(tracker.head_loss());
+                }
                 let snapshot = stats_clone.snapshot().await;
                 if let Some(ref mut o) = out {
                     let _ = o.write_snapshot(&snapshot).await;
@@ -68,6 +82,8 @@ pub async fn run_subscriber(config: SubscriberConfig) -> Result<()> {
                     debug!(
                         received = snapshot.received_count,
                         errors = snapshot.error_count,
+                        duplicates = snapshot.duplicate_count,
+                        gaps = snapshot.gap_count,
                         rate = format!("{:.2}", snapshot.interval_throughput()),
                         p99_ms = format!("{:.2}", snapshot.latency_ns_p99 as f64 / 1_000_000.0),
                         crashes = snapshot.crashes_injected,
@@ -85,13 +101,17 @@ pub async fn run_subscriber(config: SubscriberConfig) -> Result<()> {
     // This channel persists across reconnections
     let (tx, rx) = flume::unbounded::<(u64, [u8; 24])>();
     let stats_worker = stats.clone();
-    tokio::spawn(async move {
+    let seq_tracker_worker = Arc::clone(&seq_tracker);
+    let worker_handle = tokio::spawn(async move {
         let mut buf = Vec::with_capacity(1024);
         loop {
             // Block until at least 1 item
             let first = match rx.recv_async().await {
                 Ok(v) => v,
-                Err(_) => break,
+                Err(_) => {
+                    // Channel closed - stats will be reported by main task
+                    break;
+                }
             };
             buf.clear();
             buf.push(first);
@@ -102,14 +122,24 @@ pub async fn run_subscriber(config: SubscriberConfig) -> Result<()> {
                     break;
                 }
             }
-            // Parse headers and compute latencies
-            let mut lats = Vec::with_capacity(buf.len());
-            for (recv_ns, hdr) in buf.drain(..) {
-                if let Ok(h) = parse_header(&hdr) {
-                    lats.push(recv_ns.saturating_sub(h.timestamp_ns));
+            // Parse headers, track sequences, compute latencies
+            let mut latencies = Vec::with_capacity(buf.len());
+            {
+                let mut tracker = seq_tracker_worker.lock().await;
+                for (recv_ns, hdr) in buf.drain(..) {
+                    if let Ok(h) = parse_header(&hdr) {
+                        // Track sequence (handles duplicates)
+                        if tracker.record(h.seq) {
+                            // Only record latency for new messages
+                            latencies.push(recv_ns.saturating_sub(h.timestamp_ns));
+                        }
+                    }
                 }
             }
-            stats_worker.record_received_batch(&lats).await;
+            // Record latencies for new messages only
+            if !latencies.is_empty() {
+                stats_worker.record_received_batch(&latencies).await;
+            }
         }
     });
 
@@ -232,9 +262,21 @@ pub async fn run_subscriber(config: SubscriberConfig) -> Result<()> {
             }
         };
 
-        // Shutdown current subscription and transport
-        let _ = subscription.shutdown().await;
-        let _ = transport.shutdown().await;
+        // Handle transport cleanup based on crash vs normal exit
+        if crash_triggered {
+            // HARD CRASH: Force disconnect without graceful shutdown
+            // This simulates abrupt failure (network loss, process kill, power loss)
+            // Important for testing QoS guarantees - broker should NOT receive DISCONNECT
+            info!("Simulating hard crash - aborting connection without graceful disconnect");
+            let _ = subscription.force_disconnect().await;
+            // Drop subscription and transport immediately without graceful shutdown
+            drop(subscription);
+            drop(transport);
+        } else {
+            // Normal exit: graceful shutdown
+            let _ = subscription.shutdown().await;
+            let _ = transport.shutdown().await;
+        }
 
         if crash_triggered && config.connect.retry_enabled {
             // Sample repair time and wait before reconnecting
@@ -254,11 +296,27 @@ pub async fn run_subscriber(config: SubscriberConfig) -> Result<()> {
         }
     }
 
+    // Drop tx to signal worker to finish, then wait for it to complete
+    drop(tx);
+    // Give the worker a moment to drain any remaining messages
+    let _ = tokio::time::timeout(Duration::from_millis(100), worker_handle).await;
+
+    // Update stats with final duplicate/gap counts from sequence tracker
+    {
+        let tracker = seq_tracker.lock().await;
+        stats.set_duplicates(tracker.duplicate_count());
+        stats.set_gaps(tracker.gap_count());
+        stats.set_head_loss(tracker.head_loss());
+    }
+
     // Final statistics
     let final_stats = stats.snapshot().await;
     info!(
         received = final_stats.received_count,
         errors = final_stats.error_count,
+        duplicates = final_stats.duplicate_count,
+        gaps = final_stats.gap_count,
+        head_loss = final_stats.head_loss,
         crashes = final_stats.crashes_injected,
         reconnects = final_stats.reconnects,
         avg_rate = format!("{:.2}", final_stats.total_throughput()),
@@ -269,9 +327,17 @@ pub async fn run_subscriber(config: SubscriberConfig) -> Result<()> {
         "Final Subscriber Statistics"
     );
 
-    // Write final snapshot to output
-    if let Some(ref mut out) = output {
-        out.write_snapshot(&final_stats).await?;
+    // Write final snapshot to output (create new writer if we have a path)
+    // Note: The periodic output writer is owned by snapshot_handle task,
+    // so we need to create a new one for the final snapshot.
+    if let Some(ref path) = config.output_file {
+        let mut final_out = OutputWriter::new_csv(path.clone()).await?;
+        final_out.write_snapshot(&final_stats).await?;
+    } else if config.shared_stats.is_none() && output.is_some() {
+        // stdout case - output wasn't taken
+        if let Some(ref mut out) = output {
+            out.write_snapshot(&final_stats).await?;
+        }
     }
 
     // Clean up

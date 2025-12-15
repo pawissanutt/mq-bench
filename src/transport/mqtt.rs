@@ -18,6 +18,8 @@ pub struct MqttTransport {
     max_in: usize,
     max_out: usize,
     qos: QoS,
+    client_id: Option<String>,
+    clean_session: bool,
 }
 
 pub async fn connect(opts: ConnectOptions) -> Result<Box<dyn Transport>, TransportError> {
@@ -58,6 +60,13 @@ pub async fn connect(opts: ConnectOptions) -> Result<Box<dyn Transport>, Transpo
         1 => QoS::AtLeastOnce,
         _ => QoS::AtMostOnce,
     };
+    // Parse client_id and clean_session for persistent sessions
+    let client_id = opts.params.get("client_id").cloned();
+    let clean_session: bool = opts
+        .params
+        .get("clean_session")
+        .map(|s| s != "false" && s != "0")
+        .unwrap_or(true); // Default true for backward compatibility
     // We don't keep this MqttOptions; we store connection params to create per-role clients
     Ok(Box::new(MqttTransport {
         host,
@@ -68,6 +77,8 @@ pub async fn connect(opts: ConnectOptions) -> Result<Box<dyn Transport>, Transpo
         max_in,
         max_out,
         qos,
+        client_id,
+        clean_session,
     }))
 }
 
@@ -79,13 +90,16 @@ impl Transport for MqttTransport {
         handler: Box<dyn Fn(TransportMessage) + Send + Sync + 'static>,
     ) -> Result<Box<dyn Subscription>, TransportError> {
         // Create a dedicated client + eventloop for this subscription
-        let mut options = MqttOptions::new(
-            format!("sub-{}", uuid::Uuid::new_v4()),
-            self.host.clone(),
-            self.port,
-        );
+        // Use provided client_id or generate one; add "sub-" prefix to avoid collision with publisher
+        let cid = self
+            .client_id
+            .as_ref()
+            .map(|id| format!("sub-{}", id))
+            .unwrap_or_else(|| format!("sub-{}", uuid::Uuid::new_v4()));
+        let mut options = MqttOptions::new(cid, self.host.clone(), self.port);
         options.set_keep_alive(self.keep_alive);
         options.set_max_packet_size(self.max_in, self.max_out);
+        options.set_clean_session(self.clean_session);
         if let Some(user) = &self.username {
             if let Some(pass) = &self.password {
                 options.set_credentials(user, pass);
@@ -118,13 +132,16 @@ impl Transport for MqttTransport {
 
     async fn create_publisher(&self, topic: &str) -> Result<Box<dyn Publisher>, TransportError> {
         // Dedicated client + background poller for publisher
-        let mut options = MqttOptions::new(
-            format!("pub-{}", uuid::Uuid::new_v4()),
-            self.host.clone(),
-            self.port,
-        );
+        // Use provided client_id or generate one; add "pub-" prefix to avoid collision with subscriber
+        let cid = self
+            .client_id
+            .as_ref()
+            .map(|id| format!("pub-{}", id))
+            .unwrap_or_else(|| format!("pub-{}", uuid::Uuid::new_v4()));
+        let mut options = MqttOptions::new(cid, self.host.clone(), self.port);
         options.set_keep_alive(self.keep_alive);
         options.set_max_packet_size(self.max_in, self.max_out);
+        options.set_clean_session(self.clean_session);
         if let Some(user) = &self.username {
             if let Some(pass) = &self.password {
                 options.set_credentials(user, pass);
@@ -293,7 +310,17 @@ impl Publisher for MqttPublisher {
         Ok(())
     }
     async fn shutdown(&self) -> Result<(), TransportError> {
+        // Graceful shutdown - client will send DISCONNECT when dropped
         self.poller.abort();
+        Ok(())
+    }
+    async fn force_disconnect(&self) -> Result<(), TransportError> {
+        // HARD CRASH: Abort the eventloop immediately.
+        // This causes the TCP connection to be dropped without sending DISCONNECT.
+        // The broker will see this as an unexpected disconnect (like network failure).
+        // This is critical for testing QoS delivery guarantees.
+        self.poller.abort();
+        // Note: We don't call client.disconnect() - that would send DISCONNECT packet
         Ok(())
     }
 }
@@ -305,6 +332,12 @@ struct MqttSubscription {
 #[async_trait::async_trait]
 impl Subscription for MqttSubscription {
     async fn shutdown(&self) -> Result<(), TransportError> {
+        self.handle.abort();
+        Ok(())
+    }
+    async fn force_disconnect(&self) -> Result<(), TransportError> {
+        // HARD CRASH: Abort the eventloop immediately without graceful close.
+        // Broker will see this as unexpected disconnect.
         self.handle.abort();
         Ok(())
     }
