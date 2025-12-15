@@ -268,6 +268,12 @@ impl Transport for MqttTransport {
     async fn health_check(&self) -> Result<(), TransportError> {
         Ok(())
     }
+    async fn force_disconnect(&self) -> Result<(), TransportError> {
+        // MQTT: Transport stores connection params; actual clients are created per operation.
+        // This is a no-op since we can't force-close connections we don't hold.
+        // The crash simulation will work by dropping/recreating the transport.
+        Ok(())
+    }
 }
 
 struct MqttPublisher {

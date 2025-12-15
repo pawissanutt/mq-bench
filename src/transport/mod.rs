@@ -170,6 +170,9 @@ pub trait Transport: Send + Sync {
     ) -> Result<Box<dyn QueryRegistration>, TransportError>;
     async fn shutdown(&self) -> Result<(), TransportError>;
     async fn health_check(&self) -> Result<(), TransportError>;
+    /// Force-close the underlying connection to simulate a crash.
+    /// After calling this, all operations should return TransportError::Disconnected.
+    async fn force_disconnect(&self) -> Result<(), TransportError>;
 }
 
 #[async_trait::async_trait]

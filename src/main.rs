@@ -101,6 +101,22 @@ enum Commands {
         /// Initial delay between retries in milliseconds
         #[arg(long, default_value = "1000")]
         retry_delay: u64,
+
+        /// Mean Time To Failure in seconds (0 = disabled). Crashes are exponentially distributed.
+        #[arg(long, default_value = "0")]
+        mttf: f64,
+
+        /// Mean Time To Repair in seconds (wait before reconnect attempt)
+        #[arg(long, default_value = "5")]
+        mttr: f64,
+
+        /// Number of crashes to simulate (0 = infinite until duration ends)
+        #[arg(long, default_value = "0")]
+        crash_count: u32,
+
+        /// RNG seed for reproducible crash patterns
+        #[arg(long)]
+        crash_seed: Option<u64>,
     },
     /// Multi-topic publisher (single process, many keys)
     #[command(name = "mt-pub")]
@@ -281,6 +297,22 @@ enum Commands {
         /// Initial delay between retries in milliseconds
         #[arg(long, default_value = "1000")]
         retry_delay: u64,
+
+        /// Mean Time To Failure in seconds (0 = disabled). Crashes are exponentially distributed.
+        #[arg(long, default_value = "0")]
+        mttf: f64,
+
+        /// Mean Time To Repair in seconds (wait before reconnect attempt)
+        #[arg(long, default_value = "5")]
+        mttr: f64,
+
+        /// Number of crashes to simulate (0 = infinite until duration ends)
+        #[arg(long, default_value = "0")]
+        crash_count: u32,
+
+        /// RNG seed for reproducible crash patterns
+        #[arg(long)]
+        crash_seed: Option<u64>,
     },
     /// Requester role
     Req {
@@ -416,6 +448,10 @@ async fn main() -> Result<()> {
             enable_retry,
             retry_count,
             retry_delay,
+            mttf,
+            mttr,
+            crash_count,
+            crash_seed,
         } => {
             // Parse engine and connect opts (support legacy --endpoint)
             let engine = parse_engine(&engine).unwrap_or(Engine::Zenoh);
@@ -469,6 +505,12 @@ async fn main() -> Result<()> {
                 } else {
                     topic_prefix.clone()
                 };
+                let crash_cfg = mq_bench::CrashConfig {
+                    mttf_secs: mttf,
+                    mttr_secs: mttr,
+                    crash_count,
+                    seed: crash_seed,
+                };
                 let cfg = PublisherConfig {
                     engine: engine.clone(),
                     connect: conn.clone(),
@@ -483,6 +525,7 @@ async fn main() -> Result<()> {
                     snapshot_interval_secs: snapshot_interval_secs,
                     shared_stats: shared_stats.clone(),
                     disable_internal_snapshot: true,
+                    crash_config: crash_cfg,
                 };
                 handles.push(tokio::spawn(async move {
                     let _ = run_publisher(cfg).await;
@@ -702,6 +745,10 @@ async fn main() -> Result<()> {
             enable_retry,
             retry_count,
             retry_delay,
+            mttf,
+            mttr,
+            crash_count,
+            crash_seed,
         } => {
             let engine = parse_engine(&engine).unwrap_or(Engine::Zenoh);
             let mut conn = parse_connect_kv(&connect);
@@ -747,6 +794,12 @@ async fn main() -> Result<()> {
                 None
             };
             for _i in 0..subscribers {
+                let crash_cfg = mq_bench::CrashConfig {
+                    mttf_secs: mttf,
+                    mttr_secs: mttr,
+                    crash_count,
+                    seed: crash_seed,
+                };
                 let cfg = SubscriberConfig {
                     engine: engine.clone(),
                     connect: conn.clone(),
@@ -756,6 +809,7 @@ async fn main() -> Result<()> {
                     shared_stats: shared_stats.clone(),
                     disable_internal_snapshot: true,
                     test_stop_after_secs: None,
+                    crash_config: crash_cfg,
                 };
                 handles.push(tokio::spawn(async move {
                     let _ = run_subscriber(cfg).await;
