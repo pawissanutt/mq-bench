@@ -42,6 +42,8 @@ impl CrashConfig {
 pub struct CrashInjector {
     config: CrashConfig,
     crashes_remaining: AtomicU32,
+    base_time: Instant,
+    timeline_offset: Duration,
     next_crash_at: Instant,
     rng_state: u64, // Simple xorshift64 state
 }
@@ -59,13 +61,16 @@ impl CrashInjector {
 
         let mut injector = Self {
             crashes_remaining: AtomicU32::new(config.crash_count),
+            base_time: Instant::now(),
+            timeline_offset: Duration::ZERO,
             next_crash_at: Instant::now(),
             rng_state: seed,
             config,
         };
 
         if injector.config.is_enabled() {
-            injector.schedule_next_crash();
+            // Schedule first crash deterministically relative to injector start.
+            injector.schedule_next_crash_after(Duration::ZERO);
         }
 
         injector
@@ -125,8 +130,25 @@ impl CrashInjector {
 
     /// Schedule the next crash time based on MTTF.
     pub fn schedule_next_crash(&mut self) {
+        self.schedule_next_crash_after(Duration::ZERO);
+    }
+
+    /// Schedule the next crash after a known downtime (e.g., MTTR repair sleep).
+    ///
+    /// This avoids timing drift when the check loop notices a crash late: crash times are
+    /// derived from a deterministic timeline offset rather than `Instant::now()`.
+    pub fn schedule_next_crash_after(&mut self, downtime: Duration) {
+        if !self.config.is_enabled() {
+            return;
+        }
+
+        // Advance the deterministic timeline by the downtime we intentionally slept.
+        self.timeline_offset += downtime;
+
+        // Then advance by the next failure interval.
         let time_to_failure = self.sample_exponential(self.config.mttf_secs);
-        self.next_crash_at = Instant::now() + time_to_failure;
+        self.timeline_offset += time_to_failure;
+        self.next_crash_at = self.base_time + self.timeline_offset;
     }
 
     /// Consume one crash from the counter.

@@ -284,8 +284,8 @@ pub async fn run_subscriber(config: SubscriberConfig) -> Result<()> {
             info!(repair_secs = repair_time.as_secs_f64(), "Simulating repair delay");
             tokio::time::sleep(repair_time).await;
 
-            // Schedule next crash
-            crash_injector.schedule_next_crash();
+            // Schedule next crash (deterministic timeline includes the repair downtime)
+            crash_injector.schedule_next_crash_after(repair_time);
             stats.record_reconnect();
             info!("Attempting reconnection after crash");
             continue 'reconnect;

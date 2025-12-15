@@ -25,13 +25,24 @@ ARTIFACTS_DIR="${PROJECT_DIR}/artifacts/reliable_test_$(date +%Y%m%d_%H%M%S)"
 # Test parameters
 BROKER_HOST="${BROKER_HOST:-127.0.0.1}"
 BROKER_PORT="${BROKER_PORT:-1883}"
-RATE=1000
-PUB_MTTF=1.5     # Publisher mean time to failure (seconds) - shorter = more crashes
-PUB_MTTR=0.5      # Publisher mean time to recovery (seconds)
-SUB_MTTF=1.5      # Subscriber mean time to failure (seconds)
-SUB_MTTR=0.5      # Subscriber mean time to recovery (seconds)
-CRASH_COUNT=8     # Max crashes per side
-DURATION=20       # Longer duration to allow for crashes on both sides
+RATE="${RATE:-1000}"
+PUB_MTTF="${PUB_MTTF:-1.5}"     # Publisher mean time to failure (seconds) - shorter = more crashes
+PUB_MTTR="${PUB_MTTR:-1}"       # Publisher mean time to recovery (seconds)
+SUB_MTTF="${SUB_MTTF:-1.5}"     # Subscriber mean time to failure (seconds)
+SUB_MTTR="${SUB_MTTR:-1}"       # Subscriber mean time to recovery (seconds)
+CRASH_COUNT="${CRASH_COUNT:-8}"  # Max crashes per side
+DURATION="${DURATION:-20}"       # Longer duration to allow for crashes on both sides
+
+# Drain behavior after publisher exits
+# - QoS 2 + persistent sessions + hard crashes can wedge on an incomplete PUBREL/PUBCOMP.
+#   When this happens, Mosquitto may keep retrying the same PUBREL and stop delivering newer queued messages.
+DRAIN_TIMEOUT_SECS="${DRAIN_TIMEOUT_SECS:-90}"
+DRAIN_IDLE_SECS="${DRAIN_IDLE_SECS:-5}"
+
+# To make crash injection more comparable across back-to-back tests, keep the subscriber alive for a fixed
+# wall-clock duration per test case. Otherwise, different drain times change how many crashes occur even
+# with the same seed.
+SUB_TOTAL_SECS="${SUB_TOTAL_SECS:-$((DURATION + 40))}"
 
 # Colors
 RED='\033[0;31m'
@@ -52,6 +63,65 @@ cleanup() {
     jobs -p | xargs -r kill 2>/dev/null || true
 }
 trap cleanup EXIT
+
+csv_last_field() {
+    local csv_file="$1"
+    local field_idx="$2"
+    if [[ ! -f "$csv_file" ]]; then
+        echo "0"
+        return 0
+    fi
+    tail -n 1 "$csv_file" | cut -d',' -f"$field_idx" 2>/dev/null || echo "0"
+}
+
+wait_for_subscriber_drain() {
+    local sub_pid="$1"
+    local sub_csv="$2"
+    local expected="$3"  # 0 disables waiting for expected
+    local hard_deadline_ts="${4:-0}" # 0 disables
+
+    local start_ts
+    start_ts=$(date +%s)
+    local last_progress_ts="$start_ts"
+    local last_received="-1"
+
+    while true; do
+        # Stop if subscriber already exited
+        if ! kill -0 "$sub_pid" 2>/dev/null; then
+            break
+        fi
+
+        local now_ts
+        now_ts=$(date +%s)
+        local elapsed=$((now_ts - start_ts))
+        if [[ "$elapsed" -ge "$DRAIN_TIMEOUT_SECS" ]]; then
+            break
+        fi
+
+        if [[ "$hard_deadline_ts" -gt 0 && "$now_ts" -ge "$hard_deadline_ts" ]]; then
+            break
+        fi
+
+        local received
+        received=$(csv_last_field "$sub_csv" 3)
+
+        if [[ "$received" != "$last_received" ]]; then
+            last_received="$received"
+            last_progress_ts="$now_ts"
+        fi
+
+        if [[ "$expected" -gt 0 && "$received" -ge "$expected" ]]; then
+            break
+        fi
+
+        local idle=$((now_ts - last_progress_ts))
+        if [[ "$idle" -ge "$DRAIN_IDLE_SECS" ]]; then
+            break
+        fi
+
+        sleep 1
+    done
+}
 
 mkdir -p "$ARTIFACTS_DIR"
 
@@ -112,6 +182,9 @@ run_single_test() {
     # Start subscriber
     "${sub_cmd[@]}" >"$sub_log" 2>&1 &
     local sub_pid=$!
+    local sub_start_ts
+    sub_start_ts=$(date +%s)
+    local sub_deadline_ts=$((sub_start_ts + SUB_TOTAL_SECS))
     # Wait for subscriber to connect and subscribe before starting publisher
     # This prevents losing early messages before subscription is active
     sleep 2
@@ -123,6 +196,7 @@ run_single_test() {
             --connect "port=$BROKER_PORT" \
             --connect "qos=$qos" \
             --connect "client_id=pub-${test_name}-${test_id}" \
+            --connect "clean_session=false" \
             --topic "$topic" \
             --payload 64 \
             --rate "$RATE" \
@@ -153,9 +227,28 @@ run_single_test() {
             >"$pub_log" 2>&1
     fi
 
-    # Give subscriber time to drain any queued messages from the broker
-    # With crashes, messages can be queued for a long time, so wait longer
-    sleep 10
+    # Give subscriber time to drain any queued messages from the broker.
+    # For rel-pub, compare against CONFIRMED (PUBACK/PUBCOMP), not SENT.
+    local expected_drain=0
+    if [[ -f "$pub_log" ]]; then
+        if [[ "$pub_type" == "rel-pub" ]] && grep -q "Final Reliable Publisher Statistics" "$pub_log"; then
+            expected_drain=$(grep "Final Reliable Publisher Statistics" "$pub_log" | sed 's/.*confirmed=\([0-9]*\).*/\1/' | head -1)
+        elif [[ "$pub_type" != "rel-pub" ]] && grep -q "Final Publisher Statistics" "$pub_log"; then
+            expected_drain=$(grep "Final Publisher Statistics" "$pub_log" | sed 's/.*sent=\([0-9]*\).*/\1/' | head -1)
+        fi
+    fi
+    wait_for_subscriber_drain "$sub_pid" "$sub_csv" "$expected_drain" "$sub_deadline_ts"
+
+    # Keep subscriber alive until the fixed deadline to stabilize crash injection.
+    # This makes crash counts comparable across test cases with the same seed.
+    while kill -0 "$sub_pid" 2>/dev/null; do
+        local now_ts
+        now_ts=$(date +%s)
+        if [[ "$now_ts" -ge "$sub_deadline_ts" ]]; then
+            break
+        fi
+        sleep 1
+    done
     # Send SIGINT (Ctrl+C) for graceful shutdown so subscriber can report final stats
     kill -INT $sub_pid 2>/dev/null || true
     # Wait for graceful shutdown with timeout (up to 10 seconds)
@@ -214,8 +307,14 @@ run_single_test() {
 
     # Calculate loss
     local loss_pct="N/A"
-    if [[ $sent -gt 0 ]]; then
-        loss_pct=$(echo "scale=1; ($sent - $received) * 100 / $sent" | bc 2>/dev/null || echo "0")
+    local basis_label="sent"
+    local basis_value="$sent"
+    if [[ "$pub_type" == "rel-pub" ]]; then
+        basis_label="confirmed"
+        basis_value="$confirmed"
+    fi
+    if [[ "$basis_value" != "N/A" && "$basis_value" -gt 0 ]]; then
+        loss_pct=$(echo "scale=1; ($basis_value - $received) * 100 / $basis_value" | bc 2>/dev/null || echo "0")
     fi
 
     # Convert latencies from nanoseconds to milliseconds
@@ -226,12 +325,19 @@ run_single_test() {
     # Print results
     echo "  Sent:         $sent"
     [[ "$confirmed" != "N/A" ]] && echo "  Confirmed:    $confirmed"
+    [[ "$confirmed" != "N/A" ]] && echo "  Unconfirmed:  $((sent - confirmed))"
     echo "  Received:     $received"
     echo "  Duplicates:   $duplicates"
     echo "  Gaps:         $gaps"
     echo "  Pub Crashes:  $pub_crashes"
     echo "  Sub Crashes:  $sub_crashes_count"
-    echo "  Loss:         ${loss_pct}%"
+    echo "  Loss (${basis_label}): ${loss_pct}%"
+    if [[ "$confirmed" != "N/A" && "$confirmed" -gt "$received" ]]; then
+        echo "  Tail Missing: $((confirmed - received))"
+    fi
+    if [[ -f "$sub_log" ]] && grep -q "Unsolicited pubrel packet" "$sub_log"; then
+        echo "  QoS2 State:   WARNING (unsolicited PUBREL seen; session may be wedged)"
+    fi
     echo "  Latency p50:  ${lat_p50_ms}ms"
     echo "  Latency p95:  ${lat_p95_ms}ms"
     echo "  Latency p99:  ${lat_p99_ms}ms"
